@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Órdenes de Trabajo - PNP</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        
+        /* DISEÑO EN DOS COLUMNAS (Solo pantalla) */
+        .workspace {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .panel-left { border-left: 5px solid #0056b3; }
+        .panel-right { border-left: 5px solid #28a745; }
+        
+        h2 { margin-top: 0; color: #333; font-size: 1.3em; margin-bottom: 15px; }
+        
+        /* FORMULARIO */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+        .form-group textarea { resize: vertical; height: 100px; }
+        
+        .row-inline {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .checkbox-group {
+            flex-direction: row;
+            align-items: center;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        /* BOTONES */
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .btn {
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 0.95em;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-align: center;
+        }
+        .btn-blue { background-color: #0056b3; }
+        .btn-blue:hover { background-color: #004085; }
+        .btn-green { background-color: #28a745; }
+        .btn-green:hover { background-color: #218838; }
+        .btn-red { background-color: #dc3545; }
+        .btn-red:hover { background-color: #c82333; }
+
+        /* TABLA DE HISTORIAL */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .history-table th, .history-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .history-table th { background-color: #f8f9fa; }
+        .action-btns { display: flex; gap: 5px; }
+        .btn-action { padding: 3px 8px; font-size: 0.8em; cursor: pointer; border: none; border-radius: 3px; color: white; }
+
+        /* VISOR DE PDF FLOTANTE MODAL */
+        .pdf-viewer-modal {
+            display: none; 
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75); 
+            backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 0;
+        }
+        .pdf-viewer-content {
+            background-color: #fff;
+            margin: 0 auto;
+            padding: 0;
+            width: 210mm; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            position: relative;
+            border-radius: 4px;
+        }
+        .pdf-viewer-toolbar {
+            max-width: 210mm;
+            margin: 0 auto 10px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-viewer {
+            background: #212529;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+        .close-viewer:hover { background: #000; }
+
+        /* CONFIGURACIÓN DE LA HOJA OFICIAL INTERNA */
+        .print-page {
+            background: #ffffff;
+            padding: 45px 55px; 
+            box-sizing: border-box;
+            width: 100%;
+            color: #000000 !important;
+        }
+        .print-page * {
+            color: #000000 !important;
+        }
+        
+        /* Cabecera Estructural Alineada */
+        .header-layout {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .header-left {
+            width: 160px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .header-left img {
+            max-width: 95px;
+            max-height: 75px;
+            object-fit: contain;
+        }
+        .hospital-tag {
+            font-size: 0.65em;
+            font-weight: bold;
+            margin-top: 2px;
+            line-height: 1.1;
+        }
+        
+        /* Contenedor central superior para "Coordinar con" */
+        .header-text-line-2-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center; 
+            padding-top: 5px;
+        }
+        .coordinar-box {
+            border: 1px solid #000000; 
+            padding: 5px 12px; 
+            text-align: left; 
+            display: inline-block;
+            font-family: Arial, sans-serif;
+            line-height: 1.3;
+            max-width: 280px;
+        }
+        .coordinar-title {
+            font-weight: bold;
+            font-size: 0.85em; 
+            display: block;
+            margin-bottom: 2px;
+        }
+        .coordinar-body {
+            font-weight: normal;
+            font-size: 0.75em; 
+            display: block;
+        }
+
+        /* Lado Derecho de la Cabecera con Jerarquía */
+        .header-center-right {
+            width: 240px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; 
+            font-size: 0.8em;
+            line-height: 1.4;
+            padding-top: 5px;
+            flex-shrink: 0;
+        }
+        .header-text-line-1 { 
+            font-weight: bold; 
+            text-align: right;
+            width: 100%;
+            text-transform: uppercase;
+        }
+        .header-text-line-sub {
+            font-weight: bold;
+            text-align: right;
+            width: 100%;
+            margin-top: 2px;
+        }
+
+        /* Título Principal */
+        .main-title-block {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0 15px 0;
+            padding: 0 10px;
+        }
+        .title-center {
+            font-weight: bold;
+            font-size: 1.6em;
+            flex-grow: 1;
+            text-align: center;
+            padding-left: 80px;
+        }
+        .number-right {
+            font-weight: bold;
+            font-size: 1.3em;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        /* Campos Dinámicos con líneas punteadas adaptativas */
+        .info-field-row {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-end;
+            font-size: 0.95em;
+            width: 100%;
+        }
+        .info-field-label {
+            font-weight: bold;
+            font-size: 1em;
+            flex-shrink: 0;
+            margin-right: 15px;
+        }
+        .info-field-value-dots {
+            border-bottom: 1px dashed #000000;
+            display: inline-block;
+            font-weight: bold;
+            padding-bottom: 1px;
+        }
+
+        /* Tabla Centrada */
+        .data-table-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin: 12px 0;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #000;
+            padding: 6px 4px;
+            text-align: center;
+            font-size: 0.8em;
+            width: 20%;
+        }
+        .data-table th { font-weight: bold; }
+        .data-table td { height: 28px; vertical-align: middle; }
+
+        /* Sello */
+        .stamp-space { width: 100%; line-height: 1.2; }
+
+        /* Fecha */
+        .date-container-row { margin: 10px 0; font-size: 0.95em; }
+        .date-label { font-weight: bold; margin-right: 10px; }
+        .date-value { font-weight: normal; }
+
+        /* Caja de Informe */
+        .full-width-report { width: 100%; margin-top: 15px; box-sizing: border-box; }
+        .report-header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 4px;
+        }
+        .report-title { font-size: 1.15em; font-weight: bold; }
+        .materials-fixed-text { font-size: 1.15em; font-weight: bold; }
+        
+        .square-span { 
+            font-size: 1.2em; 
+            margin-left: 4px; 
+            margin-right: 10px; 
+            vertical-align: middle; 
+            font-weight: normal;
+        }
+        
+        .report-box {
+            width: 100%;
+            border: 1.5px solid #000;
+            min-height: 410px; 
+            padding: 15px;
+            box-sizing: border-box;
+            white-space: pre-wrap;
+            font-size: 0.95em;
+        }
+        
+        /* Firmas */
+        .signatures-container {
+            margin-top: 40px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 35px;
+        }
+        .signature-row-top { display: flex; justify-content: space-between; width: 100%; }
+        .signature-row-bottom { display: flex; justify-content: center; width: 100%; }
+        .signature-block {
+            text-align: center;
+            width: 32%; 
+            font-size: 0.75em;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+        .line-dots { margin-bottom: 3px; letter-spacing: 0.5px; font-weight: normal; }
+
+        /* IMPRESIÓN */
+        @media print {
+            body { background: none; padding: 0; margin: 0; }
+            .workspace, .pdf-viewer-toolbar, .close-viewer { display: none !important; }
+            .pdf-viewer-modal { position: absolute; padding: 0; background: none; backdrop-filter: none; display: block !important; overflow: visible; }
+            .pdf-viewer-content { box-shadow: none; width: 100%; margin: 0; }
+            .print-page { padding: 0; border: none; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="workspace">
+        
+        <div class="panel panel-left">
+            <h2 id="form-title">Nueva Orden de Trabajo</h2>
+            <input type="hidden" id="in-id-edicion" value="">
+
+            <div class="form-group">
+                <label>Número de Orden:</label>
+                <div class="row-inline">
+                    <input type="text" id="in-correlativo" style="flex-grow: 1;">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="chk-auto" checked>
+                        <label for="chk-auto">Auto</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #28a745; font-weight: bold;">Escudo / Sello Institucional:</label>
+                <div style="font-size: 0.85em; color: #666; background: #e9ecef; padding: 8px; border-radius: 4px; border: 1px solid #ced4da;">
+                    Cargando automáticamente desde <code>img/logo.png</code>
+                </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 12px; border: 1px solid #dee2e6;">
+                <span style="font-size: 0.85em; font-weight: bold; color: #0056b3; display: block; margin-bottom: 8px;">Datos para Coordinar el trabajo:</span>
+                
+                <div class="form-group">
+                    <label for="in-grado">Grado / Tratamiento:</label>
+                    <select id="in-grado">
+                        <option value="">-- SELECCIONE --</option>
+                        <option value="CRNL PNP">CRNL PNP</option>
+                        <option value="CRNL SPNP">CRNL SPNP</option>
+                        <option value="CMDTE PNP">CMDTE PNP</option>
+                        <option value="CMDTE SPNP">CMDTE SPNP</option>
+                        <option value="MAY PNP">MAY PNP</option>
+                        <option value="MAY SPNP">MAY SPNP</option>
+                        <option value="CAP PNP">CAP PNP</option>
+                        <option value="CAP SPNP">CAP SPNP</option>
+                        <option value="TNTE PNP">TNTE PNP</option>
+                        <option value="ALF PNP">ALF PNP</option>
+                        <option value="SS PNP">SS PNP</option>
+                        <option value="SS SPNP">SS SPNP</option>
+                        <option value="SB PNP">SB PNP</option>
+                        <option value="SB SPNP">SB SPNP</option>
+                        <option value="ST1 PNP">ST1 PNP</option>
+                        <option value="ST1 SPNP">ST1 SPNP</option>
+                        <option value="ST2 PNP">ST2 PNP</option>
+                        <option value="ST2 SPNP">ST2 SPNP</option>
+                        <option value="ST3 PNP">ST3 PNP</option>
+                        <option value="ST3 SPNP">ST3 SPNP</option>
+                        <option value="S1 PNP">S1 PNP</option>
+                        <option value="S1 SPNP">S1 SPNP</option>
+                        <option value="S2 PNP">S2 PNP</option>
+                        <option value="S2 SPNP">S2 SPNP</option>
+                        <option value="S3 PNP">S3 PNP</option>
+                        <option value="S3 SPNP">S3 SPNP</option>
+                        <option value="EMPLEADO CIVIL">EMPLEADO CIVIL</option>
+                        <option value="LOCADOR DE SERVICIOS">LOCADOR DE SERVICIOS</option>
+                        <option value="SEÑOR">SEÑOR</option>
+                        <option value="SEÑORA">SEÑORA</option>
+                        <option value="SEÑORITA">SEÑORITA</option>
+                        <option value="JOVEN">JOVEN</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="in-encargado-nombre">Nombres y Apellidos:</label>
+                    <input type="text" id="in-encargado-nombre" placeholder="JAVIER LEANDRO MASIAS">
+                </div>
+                <div class="form-group">
+                    <label for="in-telefono" style="color: #dc3545;">Número de Celular (Obligatorio - Max 9 números *):</label>
+                    <input type="text" id="in-telefono" placeholder="933456543" maxlength="9">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="in-solicitante">Quién solicita:</label>
+                <input type="text" id="in-solicitante">
+            </div>
+
+            <div class="form-group">
+                <label for="in-trabajo">Trabajo por efectuar:</label>
+                <input type="text" id="in-trabajo">
+            </div>
+
+            <div class="form-group"><label>Nombre del Equipo:</label><input type="text" id="in-nombre"></div>
+            <div class="form-group"><label>Marca:</label><input type="text" id="in-marca"></div>
+            <div class="form-group"><label>Modelo:</label><input type="text" id="in-modelo"></div>
+            <div class="form-group"><label>Serie:</label><input type="text" id="in-serie"></div>
+            
+            <div class="form-group">
+                <label for="in-anio">Año de Adquisición (1950 - 2026):</label>
+                <input type="text" id="in-anio" placeholder="Ej. 2019" maxlength="4">
+            </div>
+
+            <div class="form-group">
+                <label for="in-informe">Informe del Trabajo:</label>
+                <textarea id="in-informe" placeholder="Escriba aquí los detalles del informe técnico efectuado..."></textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-green" onclick="guardarOrden()">Guardar Orden</button>
+                <button class="btn btn-blue" onclick="cancelarEdicion()" id="btn-cancelar" style="display:none;">Cancelar Edición</button>
+            </div>
+        </div>
+
+        <div class="panel panel-right">
+            <h2>Historial de Órdenes Registradas</h2>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>N° Orden</th>
+                        <th>Fecha</th>
+                        <th>Solicitante</th>
+                        <th>Equipo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-ordenes"></tbody>
+            </table>
+        </div>
+        
+    </div>
+
+    <div id="pdf-viewer-container" class="pdf-viewer-modal">
+        
+        <div class="pdf-viewer-toolbar">
+            <button class="close-viewer" onclick="cerrarVisorPDF()">❌ Cerrar Vista Previa</button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-blue" onclick="window.print()" style="padding: 10px 25px;">Imprimir Orden de Trabajo 🖨️</button>
+            </div>
+        </div>
+
+        <div class="pdf-wrapper" id="area-imprimible-pdf">
+            <div class="print-page">
+                
+                <div class="header-layout">
+                    <div class="header-left">
+                        <img id="view-logo" src="img/logo.png" alt="[Escudo]">
+                        <div class="hospital-tag">Hospital Nacional PNP<br>"Luis N. Saenz"</div>
+                    </div>
+                    
+                    <div class="header-text-line-2-container">
+                        <div class="coordinar-box">
+                            <span class="coordinar-title">CORDINAR CON:</span>
+                            <span class="coordinar-body" id="view-linea-grado-nombre"></span>
+                            <span class="coordinar-body" id="view-linea-celular"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="header-center-right">
+                        <div class="header-text-line-1">Oficina de Administracion</div>
+                        <div class="header-text-line-sub">Seccion de Servicios Generales</div>
+                    </div>
+                </div>
+
+                <div class="main-title-block">
+                    <div class="title-center">Orden de Trabajo</div>
+                    <div class="number-right">N°<span id="view-correlativo"></span></div>
+                </div>
+
+                <div class="info-field-row">
+                    <span class="info-field-label">Quién solicita :</span>
+                    <span class="info-field-value-dots" id="view-solicitante"></span>
+                </div>
+                
+                <div class="info-field-row">
+                    <span class="info-field-label">Trabajo por efectuar:</span>
+                    <span class="info-field-value-dots" id="view-trabajo"></span>
+                </div>
+
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Marca</th>
+                                <th>Modelo</th>
+                                <th>Serie</th>
+                                <th>Año de Adquisición</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td id="view-nombre"></td>
+                                <td id="view-marca"></td>
+                                <td id="view-modelo"></td>
+                                <td id="view-serie"></td>
+                                <td id="view-anio"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="stamp-space">
+                    <br><br><br><br><br><br>
+                </div>
+
+                <div class="date-container-row">
+                    <span class="date-label">Fecha:</span>
+                    <span class="date-value" id="view-fecha"></span>
+                </div>
+
+                <div class="full-width-report">
+                    <div class="report-header-line">
+                        <span class="report-title">Informe del trabajo:</span>
+                        <span class="materials-fixed-text">Lista de Materiales: Si <span class="square-span">&#9633;</span> No <span class="square-span">&#9633;</span></span>
+                    </div>
+                    <div class="report-box" id="view-informe"></div>
+                </div>
+
+                <div class="signatures-container">
+                    <div class="signature-row-top">
+                        <div class="signature-block">
+                            <div class="line-dots">---------------------------------------</div>
+                            <div>JEFE DEL DEPARTAMENTO</div>
+                        </div>
+                        <div class="signature-block">
+                            <div class="line-dots">---------------------------------------</div>
+                            <div>JEFE DEL TALLER</div>
+                        </div>
+                    </div>
+                    <div class="signature-row-bottom">
+                        <div class="signature-block">
+                            <div class="line-dots">---------------------------------------</div>
+                            <div>Locador SSGG</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ordenes = JSON.parse(localStorage.getItem('ordenes_db')) || [];
+        const anioActual = 2026; 
+
+        window.onload = function() {
+            configurarModoNumero();
+            actualizarTablaHistorial();
+            activarMayusculasAutomaticas();
+            
+            // Forzamos a que el visor tenga siempre asignada la ruta directa local
+            document.getElementById('view-logo').src = "img/logo.png";
+            
+            document.getElementById('chk-auto').addEventListener('change', configurarModoNumero);
+            
+            document.getElementById('in-anio').addEventListener('input', function(e) {
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+
+            document.getElementById('in-telefono').addEventListener('input', function(e) {
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+        };
+
+        function convertirAMayusculasEspanol(texto) {
+            const mapaAcentos = {
+                'á': 'Á', 'é': 'É', 'í': 'Í', 'ó': 'Ó', 'ú': 'Ú',
+                'ü': 'Ü', 'ñ': 'Ñ'
+            };
+            return texto.toLowerCase().split('').map(letra => mapaAcentos[letra] || letra.toUpperCase()).join('');
+        }
+
+        function activarMayusculasAutomaticas() {
+            const inputsYTextareas = document.querySelectorAll('.panel-left input[type="text"], .panel-left textarea');
+            inputsYTextareas.forEach(element => {
+                element.addEventListener('input', function() {
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    this.value = convertirAMayusculasEspanol(this.value);
+                    this.setSelectionRange(start, end);
+                });
+            });
+        }
+
+        function configurarModoNumero() {
+            const chkAuto = document.getElementById('chk-auto');
+            const inputCorr = document.getElementById('in-correlativo');
+            
+            if (chkAuto.checked) {
+                inputCorr.disabled = true;
+                inputCorr.value = generarProximoNumero();
+            } else {
+                inputCorr.disabled = false;
+                if(document.getElementById('in-id-edicion').value === "") inputCorr.value = "";
+            }
+        }
+
+        function generarProximoNumero() {
+            if(ordenes.length === 0) return "0001";
+            const codigos = ordenes.map(o => parseInt(o.correlativo) || 0);
+            const max = Math.max(...codigos);
+            return String(max + 1).padStart(4, '0');
+        }
+
+        function guardarOrden() {
+            // ELIMINADA VALIDACIÓN DEL LOGO: Ahora se asume que existe en la carpeta local img/
+            const gradoSelect = document.getElementById('in-grado').value;
+            if (!gradoSelect || gradoSelect.trim() === "") {
+                alert("ERROR: Debe seleccionar un Grado / Tratamiento válido de la lista.");
+                document.getElementById('in-grado').focus();
+                return;
+            }
+
+            const celularInput = document.getElementById('in-telefono').value.trim();
+            if (!celularInput) {
+                alert("ERROR: El número de celular del encargado es obligatorio.");
+                document.getElementById('in-telefono').focus();
+                return;
+            }
+            if (celularInput.length !== 9) {
+                alert("ERROR: El número de celular debe contener exactamente 9 dígitos numéricos.");
+                document.getElementById('in-telefono').focus();
+                return;
+            }
+
+            const anioInput = document.getElementById('in-anio').value.trim();
+            const anioNumerico = parseInt(anioInput);
+
+            if (!anioInput || isNaN(anioNumerico)) {
+                alert("ERROR: El campo año no puede estar vacío.");
+                document.getElementById('in-anio').focus();
+                return;
+            }
+
+            if (anioNumerico < 1950 || anioNumerico > 2026) {
+                alert("ERROR: El Año de Adquisición debe ser un número entre 1950 y 2026.");
+                document.getElementById('in-anio').focus();
+                return;
+            }
+
+            const idEdicion = document.getElementById('in-id-edicion').value;
+            const correlativoInput = document.getElementById('in-correlativo').value.trim();
+            
+            if(!correlativoInput){
+                alert("Por favor, introduce o genera un número de orden.");
+                return;
+            }
+
+            const hoy = new Date();
+            const dia = hoy.getDate();
+            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+            const anio = hoy.getFullYear();
+            const fechaFormateada = `${dia}/${mes}/${anio}`;
+
+            const datosOrden = {
+                id: idEdicion ? parseInt(idEdicion) : Date.now(),
+                correlativo: correlativoInput.toUpperCase(),
+                grado: gradoSelect, 
+                encargadoNombre: convertirAMayusculasEspanol(document.getElementById('in-encargado-nombre').value),
+                telefono: celularInput,
+                solicitante: convertirAMayusculasEspanol(document.getElementById('in-solicitante').value),
+                trabajo: convertirAMayusculasEspanol(document.getElementById('in-trabajo').value),
+                nombre: convertirAMayusculasEspanol(document.getElementById('in-nombre').value),
+                marca: convertirAMayusculasEspanol(document.getElementById('in-marca').value),
+                modelo: convertirAMayusculasEspanol(document.getElementById('in-modelo').value),
+                serie: convertirAMayusculasEspanol(document.getElementById('in-serie').value),
+                anio: anioInput,
+                informe: convertirAMayusculasEspanol(document.getElementById('in-informe').value),
+                fecha: fechaFormateada
+            };
+
+            if (idEdicion) {
+                const index = ordenes.findIndex(o => o.id === parseInt(idEdicion));
+                ordenes[index] = datosOrden;
+                alert("¡Orden de trabajo modificada y guardada con éxito!");
+            } else {
+                if(ordenes.some(o => o.correlativo === datosOrden.correlativo)) {
+                    alert("El número de orden ya existe. Por favor ingresa uno correlativo diferente.");
+                    return;
+                }
+                ordenes.push(datosOrden);
+                alert("¡Nueva orden registrada en el historial!");
+            }
+
+            localStorage.setItem('ordenes_db', JSON.stringify(ordenes));
+            limpiarFormulario();
+            actualizarTablaHistorial();
+        }
+
+        function actualizarTablaHistorial() {
+            const tbody = document.getElementById('lista-ordenes');
+            tbody.innerHTML = '';
+
+            if(ordenes.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No hay órdenes en el historial.</td></tr>`;
+                return;
+            }
+
+            [...ordenes].reverse().forEach(o => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${o.correlativo}-${anioActual}</strong></td>
+                    <td>${o.fecha}</td>
+                    <td>${o.solicitante.substring(0, 20)}...</td>
+                    <td>${o.nombre}</td>
+                    <td class="action-btns">
+                        <button class="btn-action btn-blue" onclick="verOrden(${o.id})">Ver</button>
+                        <button class="btn-action btn-orange" onclick="cargarParaEditar(${o.id})">Editar</button>
+                        <button class="btn-action btn-red" onclick="eliminarOrden(${o.id})">X</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function verOrden(id) {
+            const orden = ordenes.find(o => o.id === id);
+            if(!orden) return;
+
+            document.getElementById('view-correlativo').innerText = `${orden.correlativo}-${anioActual}`;
+            
+            const txtGrado = orden.grado ? orden.grado.trim() + " " : "";
+            const txtNombre = orden.encargadoNombre ? orden.encargadoNombre.trim() : "";
+            
+            document.getElementById('view-linea-grado-nombre').innerText = `${txtGrado}- ${txtNombre}`;
+            document.getElementById('view-linea-celular').innerText = `CEL: ${orden.telefono}`;
+
+            document.getElementById('view-solicitante').innerText = orden.solicitante;
+            document.getElementById('view-trabajo').innerText = orden.trabajo;
+            document.getElementById('view-fecha').innerText = orden.fecha;
+            document.getElementById('view-nombre').innerText = orden.nombre;
+            document.getElementById('view-marca').innerText = orden.marca;
+            document.getElementById('view-modelo').innerText = orden.modelo;
+            document.getElementById('view-serie').innerText = orden.serie;
+            document.getElementById('view-anio').innerText = orden.anio;
+            document.getElementById('view-informe').innerText = orden.informe;
+
+            document.getElementById('pdf-viewer-container').style.display = 'block';
+            document.getElementById('pdf-viewer-container').scrollTop = 0;
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        function cerrarVisorPDF() {
+            document.getElementById('pdf-viewer-container').style.display = 'none';
+            document.body.style.overflow = 'auto'; 
+        }
+
+        function cargarParaEditar(id) {
+            const orden = ordenes.find(o => o.id === id);
+            if(!orden) return;
+
+            document.getElementById('form-title').innerText = "Modificar Orden de Trabajo";
+            document.getElementById('in-id-edicion').value = orden.id;
+            
+            document.getElementById('chk-auto').checked = false;
+            document.getElementById('in-correlativo').disabled = false;
+            
+            document.getElementById('in-correlativo').value = orden.correlativo;
+            document.getElementById('in-grado').value = orden.grado || ""; 
+            document.getElementById('in-encargado-nombre').value = orden.encargadoNombre || "";
+            document.getElementById('in-telefono').value = orden.telefono || "";
+            
+            document.getElementById('in-solicitante').value = orden.solicitante;
+            document.getElementById('in-trabajo').value = orden.trabajo;
+            document.getElementById('in-nombre').value = orden.nombre;
+            document.getElementById('in-marca').value = orden.marca;
+            document.getElementById('in-modelo').value = orden.modelo;
+            document.getElementById('in-serie').value = orden.serie;
+            document.getElementById('in-anio').value = orden.anio;
+            document.getElementById('in-informe').value = orden.informe;
+
+            document.getElementById('btn-cancelar').style.display = 'block';
+            verOrden(id);
+        }
+
+        function eliminarOrden(id) {
+            if(confirm("¿Deseas eliminar permanentemente esta orden del historial?")) {
+                ordenes = ordenes.filter(o => o.id !== id);
+                localStorage.setItem('ordenes_db', JSON.stringify(ordenes));
+                limpiarFormulario();
+                actualizarTablaHistorial();
+            }
+        }
+
+        function cancelarEdicion() {
+            limpiarFormulario();
+        }
+
+        function limpiarFormulario() {
+            document.getElementById('form-title').innerText = "Nueva Orden de Trabajo";
+            document.getElementById('in-id-edicion').value = "";
+            document.getElementById('chk-auto').checked = true;
+            
+            document.getElementById('in-grado').value = ""; 
+            document.getElementById('in-encargado-nombre').value = "";
+            document.getElementById('in-telefono').value = "";
+            
+            document.getElementById('in-solicitante').value = "";
+            document.getElementById('in-trabajo').value = "";
+            document.getElementById('in-nombre').value = "";
+            document.getElementById('in-marca').value = "";
+            document.getElementById('in-modelo').value = "";
+            document.getElementById('in-serie').value = "";
+            document.getElementById('in-anio').value = "";
+            document.getElementById('in-informe').value = "";
+            
+            cerrarVisorPDF();
+            configurarModoNumero();
+        }
+    </script>
+</body>
+</html>

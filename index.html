@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Órdenes de Trabajo - PNP</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        /* DISEÑO EN DOS COLUMNAS (Solo pantalla) */
+        .workspace {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+        }
+        .panel-left { border-left: 5px solid #0056b3; }
+        .panel-right { border-left: 5px solid #28a745; }
+
+        h2 { margin-top: 0; color: #333; font-size: 1.3em; margin-bottom: 15px; }
+        h3 { font-size: 1em; margin: 10px 0 5px; color: #0056b3; }
+
+        /* FORMULARIO */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+        .form-group textarea { resize: vertical; height: 100px; }
+
+        .row-inline {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .checkbox-group {
+            flex-direction: row;
+            align-items: center;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .equipo-block {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 0.8em;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            margin-top: 5px;
+        }
+        .btn-sm.btn-add { background-color: #17a2b8; }
+        .btn-sm.btn-add:hover { background-color: #117a8b; }
+        .btn-sm.btn-remove { background-color: #dc3545; }
+        .btn-sm.btn-remove:hover { background-color: #bd2130; }
+
+        /* BOTONES */
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .btn {
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 0.95em;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-align: center;
+        }
+        .btn-blue { background-color: #0056b3; }
+        .btn-blue:hover { background-color: #004085; }
+        .btn-green { background-color: #28a745; }
+        .btn-green:hover { background-color: #218838; }
+        .btn-red { background-color: #dc3545; }
+        .btn-red:hover { background-color: #c82333; }
+        .btn-orange { background-color: #fd7e14; }
+        .btn-orange:hover { background-color: #e0690b; }
+
+        /* TABLA DE HISTORIAL */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .history-table th,
+        .history-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .history-table th { background-color: #f8f9fa; }
+        .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+        .btn-action {
+            padding: 3px 8px;
+            font-size: 0.8em;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            color: white;
+        }
+
+        /* VISOR DE PDF FLOTANTE MODAL */
+        .pdf-viewer-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 40px 0;
+        }
+        .pdf-viewer-content {
+            background-color: #fff;
+            margin: 0 auto;
+            padding: 0;
+            width: 210mm;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            position: relative;
+            border-radius: 4px;
+        }
+        .pdf-viewer-toolbar {
+            max-width: 210mm;
+            margin: 0 auto 10px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-viewer {
+            background: #212529;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+        .close-viewer:hover { background: #000; }
+
+        /* CONFIGURACIÓN DE LA HOJA OFICIAL INTERNA (IDÉNTICO AL ORIGINAL) */
+        .print-page {
+            background: #ffffff;
+            padding: 45px 55px;            /* ← ORIGINAL */
+            box-sizing: border-box;
+            width: 100%;
+            color: #000000 !important;
+        }
+        .print-page * {
+            color: #000000 !important;
+        }
+
+        /* Cabecera Estructural Alineada */
+        .header-layout {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .header-left {
+            width: 160px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .header-left img {
+            max-width: 95px;
+            max-height: 75px;
+            object-fit: contain;
+        }
+        .hospital-tag {
+            font-size: 0.65em;
+            font-weight: bold;
+            margin-top: 2px;
+            line-height: 1.1;
+        }
+
+        .header-text-line-2-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            padding-top: 5px;
+        }
+        .coordinar-box {
+            border: 1px solid #000000;
+            padding: 5px 12px;
+            text-align: left;
+            display: inline-block;
+            font-family: Arial, sans-serif;
+            line-height: 1.3;
+            max-width: 280px;
+        }
+        .coordinar-title {
+            font-weight: bold;
+            font-size: 0.85em;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .coordinar-body {
+            font-weight: normal;
+            font-size: 0.75em;
+            display: block;
+        }
+
+        .header-center-right {
+            width: 240px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            font-size: 0.8em;
+            line-height: 1.4;
+            padding-top: 5px;
+            flex-shrink: 0;
+        }
+        .header-text-line-1 {
+            font-weight: bold;
+            text-align: right;
+            width: 100%;
+            text-transform: uppercase;
+        }
+        .header-text-line-sub {
+            font-weight: bold;
+            text-align: right;
+            width: 100%;
+            margin-top: 2px;
+        }
+
+        /* Título Principal */
+        .main-title-block {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0 15px 0;
+            padding: 0 10px;
+        }
+        .title-center {
+            font-weight: bold;
+            font-size: 1.6em;
+            flex-grow: 1;
+            text-align: center;
+            padding-left: 80px;
+        }
+        .number-right {
+            font-weight: bold;
+            font-size: 1.3em;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        /* Campos Dinámicos con líneas punteadas (SOLO BAJO EL TEXTO) */
+        .info-field-row {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-end;
+            font-size: 0.95em;
+            width: 100%;
+        }
+        .info-field-label {
+            font-weight: bold;
+            font-size: 1em;
+            flex-shrink: 0;
+            margin-right: 15px;
+        }
+        .info-field-value-dots {
+            border-bottom: 1px dashed #000000;
+            display: inline-block;
+            font-weight: bold;
+            padding-bottom: 1px;
+            /* SIN flex-grow → el ancho lo da el texto */
+        }
+
+        /* Tabla de equipos con ancho automático y columna N° muy corta */
+        .data-table-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin: 12px 0;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: auto;                /* columnas se ajustan al contenido */
+        }
+        .data-table th,
+        .data-table td {
+            border: 1px solid #000;
+            padding: 6px 4px;
+            text-align: center;
+            font-size: 0.8em;
+        }
+        .data-table th { font-weight: bold; }
+        /* Primera columna (N°) muy estrecha */
+        .data-table th:first-child,
+        .data-table td:first-child {
+            width: 1%;
+            white-space: nowrap;
+            padding: 6px 2px;
+        }
+
+        /* Sello (con saltos de línea originales) */
+        .stamp-space { width: 100%; line-height: 1.2; }
+
+        /* Fecha */
+        .date-container-row { margin: 10px 0; font-size: 0.95em; }
+        .date-label { font-weight: bold; margin-right: 10px; }
+        .date-value { font-weight: normal; }
+
+        /* Caja de Informe (tamaño original) */
+        .full-width-report { width: 100%; margin-top: 15px; box-sizing: border-box; }
+        .report-header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 4px;
+        }
+        .report-title { font-size: 1.15em; font-weight: bold; }
+        .materials-fixed-text { font-size: 1.15em; font-weight: bold; }
+
+        .square-span {
+            font-size: 1.2em;
+            margin-left: 4px;
+            margin-right: 10px;
+            vertical-align: middle;
+            font-weight: normal;
+        }
+
+        .report-box {
+            width: 100%;
+            border: 1.5px solid #000;
+            min-height: 410px;           /* ← ORIGINAL */
+            padding: 15px;
+            box-sizing: border-box;
+            white-space: pre-wrap;
+            font-size: 0.95em;
+        }
+
+        /* Firmas */
+        .signatures-container {
+            margin-top: 40px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 35px;
+        }
+        .signature-row-top { display: flex; justify-content: space-between; width: 100%; }
+        .signature-row-bottom { display: flex; justify-content: center; width: 100%; }
+        .signature-block {
+            text-align: center;
+            width: 32%;
+            font-size: 0.75em;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+        .line-dots { margin-bottom: 3px; letter-spacing: 0.5px; font-weight: normal; }
+
+        /* IMPRESIÓN */
+        @media print {
+            body { background: none; padding: 0; margin: 0; }
+            .workspace,
+            .pdf-viewer-toolbar,
+            .close-viewer { display: none !important; }
+            .pdf-viewer-modal {
+                position: absolute;
+                padding: 0;
+                background: none;
+                backdrop-filter: none;
+                display: block !important;
+                overflow: visible;
+            }
+            .pdf-viewer-content { box-shadow: none; width: 100%; margin: 0; }
+            .print-page { padding: 0; border: none; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="workspace">
+
+        <div class="panel panel-left" id="panel-formulario">
+            <h2 id="form-title">Nueva Orden de Trabajo</h2>
+            <input type="hidden" id="in-id-edicion" value="">
+
+            <div class="form-group">
+                <label>Número de Orden:</label>
+                <div class="row-inline">
+                    <input type="text" id="in-correlativo" style="flex-grow: 1;">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="chk-auto" checked>
+                        <label for="chk-auto">Auto</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #28a745; font-weight: bold;">Escudo / Sello Institucional:</label>
+                <div style="font-size: 0.85em; color: #666; background: #e9ecef; padding: 8px; border-radius: 4px; border: 1px solid #ced4da;">
+                    Cargando automáticamente desde <code>img/logo.png</code>
+                </div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 12px; border: 1px solid #dee2e6;">
+                <span style="font-size: 0.85em; font-weight: bold; color: #0056b3; display: block; margin-bottom: 8px;">Datos para Coordinar el trabajo:</span>
+
+                <div class="form-group">
+                    <label for="in-grado">Grado / Tratamiento:</label>
+                    <select id="in-grado">
+                        <option value="">-- SELECCIONE --</option>
+                        <option value="CRNL PNP">CRNL PNP</option>
+                        <option value="CRNL SPNP">CRNL SPNP</option>
+                        <option value="CMDTE PNP">CMDTE PNP</option>
+                        <option value="CMDTE SPNP">CMDTE SPNP</option>
+                        <option value="MAY PNP">MAY PNP</option>
+                        <option value="MAY SPNP">MAY SPNP</option>
+                        <option value="CAP PNP">CAP PNP</option>
+                        <option value="CAP SPNP">CAP SPNP</option>
+                        <option value="TNTE PNP">TNTE PNP</option>
+                        <option value="ALF PNP">ALF PNP</option>
+                        <option value="SS PNP">SS PNP</option>
+                        <option value="SS SPNP">SS SPNP</option>
+                        <option value="SB PNP">SB PNP</option>
+                        <option value="SB SPNP">SB SPNP</option>
+                        <option value="ST1 PNP">ST1 PNP</option>
+                        <option value="ST1 SPNP">ST1 SPNP</option>
+                        <option value="ST2 PNP">ST2 PNP</option>
+                        <option value="ST2 SPNP">ST2 SPNP</option>
+                        <option value="ST3 PNP">ST3 PNP</option>
+                        <option value="ST3 SPNP">ST3 SPNP</option>
+                        <option value="S1 PNP">S1 PNP</option>
+                        <option value="S1 SPNP">S1 SPNP</option>
+                        <option value="S2 PNP">S2 PNP</option>
+                        <option value="S2 SPNP">S2 SPNP</option>
+                        <option value="S3 PNP">S3 PNP</option>
+                        <option value="S3 SPNP">S3 SPNP</option>
+                        <option value="EMPLEADO CIVIL">EMPLEADO CIVIL</option>
+                        <option value="LOCADOR DE SERVICIOS">LOCADOR DE SERVICIOS</option>
+                        <option value="SEÑOR">SEÑOR</option>
+                        <option value="SEÑORA">SEÑORA</option>
+                        <option value="SEÑORITA">SEÑORITA</option>
+                        <option value="JOVEN">JOVEN</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="in-encargado-nombre">Nombres y Apellidos:</label>
+                    <input type="text" id="in-encargado-nombre" placeholder="JAVIER LEANDRO MASIAS">
+                </div>
+                <div class="form-group">
+                    <label for="in-telefono" style="color: #dc3545;">Número de Celular (Obligatorio - Max 9 números *):</label>
+                    <input type="text" id="in-telefono" placeholder="933456543" maxlength="9">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="in-solicitante">Quién solicita:</label>
+                <input type="text" id="in-solicitante">
+            </div>
+
+            <div class="form-group">
+                <label for="in-trabajo">Trabajo por efectuar:</label>
+                <input type="text" id="in-trabajo">
+            </div>
+
+            <!-- SECCIÓN DE EQUIPOS DINÁMICA -->
+            <div id="contenedor-equipos">
+                <div class="equipo-block" id="equipo-1">
+                    <h3>Equipo N° 1</h3>
+                    <div class="form-group"><label>Nombre del Equipo:</label><input type="text" class="in-eq-nombre" id="in-nombre-1"></div>
+                    <div class="form-group"><label>Marca:</label><input type="text" class="in-eq-marca" id="in-marca-1"></div>
+                    <div class="form-group"><label>Modelo:</label><input type="text" class="in-eq-modelo" id="in-modelo-1"></div>
+                    <div class="form-group"><label>Serie:</label><input type="text" class="in-eq-serie" id="in-serie-1"></div>
+                    <div class="form-group">
+                        <label>Año de Adquisición (1950 - 2026):</label>
+                        <input type="text" class="in-eq-anio" id="in-anio-1" placeholder="Ej. 2019" maxlength="4">
+                    </div>
+                </div>
+
+                <div class="equipo-block" id="equipo-2" style="display: none;">
+                    <h3>Equipo N° 2</h3>
+                    <div class="form-group"><label>Nombre del Equipo:</label><input type="text" class="in-eq-nombre" id="in-nombre-2"></div>
+                    <div class="form-group"><label>Marca:</label><input type="text" class="in-eq-marca" id="in-marca-2"></div>
+                    <div class="form-group"><label>Modelo:</label><input type="text" class="in-eq-modelo" id="in-modelo-2"></div>
+                    <div class="form-group"><label>Serie:</label><input type="text" class="in-eq-serie" id="in-serie-2"></div>
+                    <div class="form-group">
+                        <label>Año de Adquisición (1950 - 2026):</label>
+                        <input type="text" class="in-eq-anio" id="in-anio-2" placeholder="Ej. 2019" maxlength="4">
+                    </div>
+                    <button type="button" class="btn-sm btn-remove" onclick="quitarEquipo2()">Quitar Equipo N° 2</button>
+                </div>
+
+                <button type="button" class="btn-sm btn-add" id="btn-agregar-equipo" onclick="agregarEquipo2()">
+                    + Agregar otro equipo (máx. 2)
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label for="in-informe">Informe del Trabajo:</label>
+                <textarea id="in-informe" placeholder="Escriba aquí los detalles del informe técnico efectuado..."></textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-green" onclick="guardarOrden()">Guardar Orden</button>
+                <button class="btn btn-blue" onclick="cancelarEdicion()" id="btn-cancelar" style="display:none;">Cancelar Edición</button>
+            </div>
+        </div>
+
+        <div class="panel panel-right">
+            <h2>Historial de Órdenes Registradas</h2>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>N° Orden</th>
+                        <th>Fecha</th>
+                        <th>Solicitante</th>
+                        <th>Equipo(s)</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-ordenes"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- MODAL VISOR PDF -->
+    <div id="pdf-viewer-container" class="pdf-viewer-modal">
+        <div class="pdf-viewer-toolbar">
+            <button class="close-viewer" onclick="cerrarVisorPDF()">❌ Cerrar Vista Previa</button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-blue" onclick="window.print()" style="padding: 10px 25px;">Imprimir Orden de Trabajo 🖨️</button>
+            </div>
+        </div>
+
+        <div class="pdf-wrapper" id="area-imprimible-pdf">
+            <div class="print-page">
+                <div class="header-layout">
+                    <div class="header-left">
+                        <img id="view-logo" src="img/logo.png" alt="[Escudo]">
+                        <div class="hospital-tag">Hospital Nacional PNP<br>"Luis N. Saenz"</div>
+                    </div>
+                    <div class="header-text-line-2-container">
+                        <div class="coordinar-box">
+                            <span class="coordinar-title">CORDINAR CON:</span>
+                            <span class="coordinar-body" id="view-linea-grado-nombre"></span>
+                            <span class="coordinar-body" id="view-linea-celular"></span>
+                        </div>
+                    </div>
+                    <div class="header-center-right">
+                        <div class="header-text-line-1">Oficina de Administracion</div>
+                        <div class="header-text-line-sub">Seccion de Servicios Generales</div>
+                    </div>
+                </div>
+
+                <div class="main-title-block">
+                    <div class="title-center">Orden de Trabajo</div>
+                    <div class="number-right">N°<span id="view-correlativo"></span></div>
+                </div>
+
+                <div class="info-field-row">
+                    <span class="info-field-label">Quién solicita :</span>
+                    <span class="info-field-value-dots" id="view-solicitante"></span>
+                </div>
+
+                <div class="info-field-row">
+                    <span class="info-field-label">Trabajo por efectuar:</span>
+                    <span class="info-field-value-dots" id="view-trabajo"></span>
+                </div>
+
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>N°</th>
+                                <th>Nombre</th>
+                                <th>Marca</th>
+                                <th>Modelo</th>
+                                <th>Serie</th>
+                                <th>Año de Adq.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="view-tabla-equipos"></tbody>
+                    </table>
+                </div>
+
+                <!-- Sello con los saltos de línea originales -->
+                <div class="stamp-space">
+                    <br><br><br><br><br><br>
+                </div>
+
+                <div class="date-container-row">
+                    <span class="date-label">Fecha:</span>
+                    <span class="date-value" id="view-fecha"></span>
+                </div>
+
+                <div class="full-width-report">
+                    <div class="report-header-line">
+                        <span class="report-title">Informe del trabajo:</span>
+                        <span class="materials-fixed-text">Lista de Materiales: Si <span class="square-span">&#9633;</span> No <span class="square-span">&#9633;</span></span>
+                    </div>
+                    <div class="report-box" id="view-informe"></div>
+                </div>
+
+                <div class="signatures-container">
+                    <div class="signature-row-top">
+                        <div class="signature-block">
+                            <div class="line-dots">---------------------------------------</div>
+                            <div>JEFE DEL DEPARTAMENTO</div>
+                        </div>
+                        <div class="signature-block">
+                            <div class="line-dots">---------------------------------------</div>
+                            <div>JEFE DEL TALLER</div>
+                        </div>
+                    </div>
+                    <div class="signature-row-bottom">
+                        <div class="signature-block">
+                            <div class="line-dots">---------------------------------------</div>
+                            <div>Locador SSGG</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ordenes = JSON.parse(localStorage.getItem('ordenes_db')) || [];
+        const anioActual = 2026;
+
+        const getEl = (id) => document.getElementById(id);
+        const val = (id) => getEl(id).value.trim();
+        const setVal = (id, value) => { getEl(id).value = value; };
+        const toUpper = (texto) => {
+            const mapa = { 'á':'Á','é':'É','í':'Í','ó':'Ó','ú':'Ú','ü':'Ü','ñ':'Ñ' };
+            return texto.toLowerCase().split('').map(l => mapa[l] || l.toUpperCase()).join('');
+        };
+
+        function activarMayusculas() {
+            document.querySelectorAll('#panel-formulario input[type="text"], #panel-formulario textarea').forEach(el => {
+                el.addEventListener('input', function() {
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    this.value = toUpper(this.value);
+                    this.setSelectionRange(start, end);
+                });
+            });
+        }
+
+        function soloDigitos(id) {
+            getEl(id).addEventListener('input', function() { this.value = this.value.replace(/[^0-9]/g, ''); });
+        }
+
+        function agregarEquipo2() {
+            getEl('equipo-2').style.display = 'block';
+            getEl('btn-agregar-equipo').style.display = 'none';
+        }
+
+        function quitarEquipo2() {
+            getEl('equipo-2').style.display = 'none';
+            getEl('btn-agregar-equipo').style.display = 'inline-block';
+            ['nombre','marca','modelo','serie','anio'].forEach(c => setVal(`in-${c}-2`, ''));
+        }
+
+        function obtenerEquiposDelFormulario() {
+            const equipos = [];
+            for (let i = 1; i <= 2; i++) {
+                const bloque = getEl(`equipo-${i}`);
+                if (!bloque || bloque.style.display === 'none') continue;
+                const nombre = val(`in-nombre-${i}`);
+                if (!nombre) continue;
+                equipos.push({
+                    nombre: toUpper(nombre),
+                    marca: toUpper(val(`in-marca-${i}`)),
+                    modelo: toUpper(val(`in-modelo-${i}`)),
+                    serie: toUpper(val(`in-serie-${i}`)),
+                    anio: val(`in-anio-${i}`)
+                });
+            }
+            return equipos;
+        }
+
+        function cargarEquiposEnFormulario(equipos) {
+            getEl('equipo-2').style.display = 'none';
+            getEl('btn-agregar-equipo').style.display = 'inline-block';
+            if (!equipos || equipos.length === 0) return;
+
+            const eq1 = equipos[0];
+            setVal('in-nombre-1', eq1.nombre||'');
+            setVal('in-marca-1', eq1.marca||'');
+            setVal('in-modelo-1', eq1.modelo||'');
+            setVal('in-serie-1', eq1.serie||'');
+            setVal('in-anio-1', eq1.anio||'');
+
+            if (equipos.length > 1) {
+                agregarEquipo2();
+                const eq2 = equipos[1];
+                setVal('in-nombre-2', eq2.nombre||'');
+                setVal('in-marca-2', eq2.marca||'');
+                setVal('in-modelo-2', eq2.modelo||'');
+                setVal('in-serie-2', eq2.serie||'');
+                setVal('in-anio-2', eq2.anio||'');
+            }
+        }
+
+        function validarAnio(valor) {
+            const anio = parseInt(valor);
+            return !isNaN(anio) && anio >= 1950 && anio <= 2026;
+        }
+
+        function generarProximoNumero() {
+            if (!ordenes.length) return "0001";
+            const max = Math.max(...ordenes.map(o => parseInt(o.correlativo) || 0));
+            return String(max + 1).padStart(4, '0');
+        }
+
+        function configurarModoNumero() {
+            const chkAuto = getEl('chk-auto');
+            const inputCorr = getEl('in-correlativo');
+            if (chkAuto.checked) {
+                inputCorr.disabled = true;
+                inputCorr.value = generarProximoNumero();
+            } else {
+                inputCorr.disabled = false;
+                if (!getEl('in-id-edicion').value) inputCorr.value = '';
+            }
+        }
+
+        function guardarOrden() {
+            const grado = val('in-grado');
+            if (!grado) return alert("ERROR: Debe seleccionar un Grado / Tratamiento.");
+
+            const celular = val('in-telefono');
+            if (!celular) return alert("ERROR: El número de celular es obligatorio.");
+            if (celular.length !== 9) return alert("ERROR: El celular debe tener exactamente 9 dígitos.");
+
+            const equipos = obtenerEquiposDelFormulario();
+            if (equipos.length === 0) return alert("ERROR: Debe registrar al menos el Nombre del Equipo N° 1.");
+            for (let i = 0; i < equipos.length; i++) {
+                if (!equipos[i].anio || !validarAnio(equipos[i].anio)) {
+                    return alert(`ERROR: El año de adquisición del Equipo N° ${i+1} debe estar entre 1950 y 2026.`);
+                }
+            }
+
+            const idEdicion = val('in-id-edicion');
+            const correlativo = val('in-correlativo');
+            if (!correlativo) return alert("Por favor, introduce o genera un número de orden.");
+
+            const hoy = new Date();
+            const fecha = `${hoy.getDate()}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+
+            const datosOrden = {
+                id: idEdicion ? parseInt(idEdicion) : Date.now(),
+                correlativo: toUpper(correlativo),
+                grado,
+                encargadoNombre: toUpper(val('in-encargado-nombre')),
+                telefono: celular,
+                solicitante: toUpper(val('in-solicitante')),
+                trabajo: toUpper(val('in-trabajo')),
+                equipos,
+                informe: toUpper(val('in-informe')),
+                fecha
+            };
+
+            if (idEdicion) {
+                const index = ordenes.findIndex(o => o.id === parseInt(idEdicion));
+                if (index !== -1) ordenes[index] = datosOrden;
+                alert("¡Orden modificada con éxito!");
+            } else {
+                if (ordenes.some(o => o.correlativo === datosOrden.correlativo)) {
+                    return alert("El número de orden ya existe. Use uno diferente.");
+                }
+                ordenes.push(datosOrden);
+                alert("¡Nueva orden registrada!");
+            }
+
+            localStorage.setItem('ordenes_db', JSON.stringify(ordenes));
+            limpiarFormulario();
+            actualizarTablaHistorial();
+        }
+
+        function actualizarTablaHistorial() {
+            const tbody = getEl('lista-ordenes');
+            tbody.innerHTML = '';
+            if (!ordenes.length) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No hay órdenes en el historial.</td></tr>`;
+                return;
+            }
+            [...ordenes].reverse().forEach(o => {
+                const primerEquipo = o.equipos?.[0]?.nombre || 'Sin equipo';
+                const extra = o.equipos?.length > 1 ? ' +1' : '';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${o.correlativo}-${anioActual}</strong></td>
+                    <td>${o.fecha}</td>
+                    <td>${o.solicitante.substring(0, 20)}...</td>
+                    <td>${primerEquipo}${extra}</td>
+                    <td class="action-btns">
+                        <button class="btn-action btn-blue" onclick="verOrden(${o.id})">Ver</button>
+                        <button class="btn-action btn-orange" onclick="cargarParaEditar(${o.id})">Editar</button>
+                        <button class="btn-action btn-red" onclick="eliminarOrden(${o.id})">X</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function verOrden(id) {
+            const orden = ordenes.find(o => o.id === id);
+            if (!orden) return;
+
+            getEl('view-correlativo').innerText = `${orden.correlativo}-${anioActual}`;
+            getEl('view-linea-grado-nombre').innerText = `${orden.grado || ''} - ${orden.encargadoNombre || ''}`;
+            getEl('view-linea-celular').innerText = `CEL: ${orden.telefono || ''}`;
+            getEl('view-solicitante').innerText = orden.solicitante;
+            getEl('view-trabajo').innerText = orden.trabajo;
+            getEl('view-fecha').innerText = orden.fecha;
+            getEl('view-informe').innerText = orden.informe;
+
+            const tbodyEquipos = getEl('view-tabla-equipos');
+            tbodyEquipos.innerHTML = '';
+            if (orden.equipos && orden.equipos.length) {
+                orden.equipos.forEach((eq, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${idx + 1}</td>
+                        <td>${eq.nombre || ''}</td>
+                        <td>${eq.marca || ''}</td>
+                        <td>${eq.modelo || ''}</td>
+                        <td>${eq.serie || ''}</td>
+                        <td>${eq.anio || ''}</td>
+                    `;
+                    tbodyEquipos.appendChild(tr);
+                });
+            }
+
+            getEl('pdf-viewer-container').style.display = 'block';
+            getEl('pdf-viewer-container').scrollTop = 0;
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cerrarVisorPDF() {
+            getEl('pdf-viewer-container').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function cargarParaEditar(id) {
+            const orden = ordenes.find(o => o.id === id);
+            if (!orden) return;
+
+            getEl('form-title').innerText = "Modificar Orden de Trabajo";
+            setVal('in-id-edicion', orden.id);
+            getEl('chk-auto').checked = false;
+            getEl('in-correlativo').disabled = false;
+            setVal('in-correlativo', orden.correlativo);
+            setVal('in-grado', orden.grado||'');
+            setVal('in-encargado-nombre', orden.encargadoNombre||'');
+            setVal('in-telefono', orden.telefono||'');
+            setVal('in-solicitante', orden.solicitante);
+            setVal('in-trabajo', orden.trabajo);
+            setVal('in-informe', orden.informe);
+            cargarEquiposEnFormulario(orden.equipos || []);
+            getEl('btn-cancelar').style.display = 'block';
+
+            verOrden(id);
+            getEl('panel-formulario').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function eliminarOrden(id) {
+            if (confirm("¿Deseas eliminar permanentemente esta orden del historial?")) {
+                ordenes = ordenes.filter(o => o.id !== id);
+                localStorage.setItem('ordenes_db', JSON.stringify(ordenes));
+                limpiarFormulario();
+                actualizarTablaHistorial();
+            }
+        }
+
+        function cancelarEdicion() { limpiarFormulario(); }
+
+        function limpiarFormulario() {
+            getEl('form-title').innerText = "Nueva Orden de Trabajo";
+            setVal('in-id-edicion', '');
+            getEl('chk-auto').checked = true;
+            setVal('in-grado', '');
+            setVal('in-encargado-nombre', '');
+            setVal('in-telefono', '');
+            setVal('in-solicitante', '');
+            setVal('in-trabajo', '');
+            setVal('in-informe', '');
+
+            setVal('in-nombre-1', '');
+            setVal('in-marca-1', '');
+            setVal('in-modelo-1', '');
+            setVal('in-serie-1', '');
+            setVal('in-anio-1', '');
+            quitarEquipo2();
+
+            getEl('btn-cancelar').style.display = 'none';
+            cerrarVisorPDF();
+            configurarModoNumero();
+        }
+
+        window.onload = function() {
+            configurarModoNumero();
+            actualizarTablaHistorial();
+            activarMayusculas();
+            getEl('view-logo').src = "img/logo.png";
+            getEl('chk-auto').addEventListener('change', configurarModoNumero);
+            soloDigitos('in-anio-1');
+            soloDigitos('in-anio-2');
+            soloDigitos('in-telefono');
+        };
+    </script>
+</body>
+</html>

@@ -31,9 +31,16 @@
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             height: fit-content;
+            transition: box-shadow 0.3s, border-color 0.3s;
         }
         .panel-left { border-left: 5px solid #0056b3; }
         .panel-right { border-left: 5px solid #28a745; }
+
+        /* Resaltado temporal al editar */
+        .panel-left.editando {
+            box-shadow: 0 0 0 3px #ffc107, 0 4px 12px rgba(0,0,0,0.15);
+            border-left-color: #ffc107;
+        }
 
         h2 { margin-top: 0; color: #333; font-size: 1.3em; margin-bottom: 15px; }
         h3 { font-size: 1em; margin: 10px 0 5px; color: #0056b3; }
@@ -119,6 +126,8 @@
         .btn-red:hover { background-color: #c82333; }
         .btn-orange { background-color: #fd7e14; }
         .btn-orange:hover { background-color: #e0690b; }
+        .btn-purple { background-color: #6f42c1; }
+        .btn-purple:hover { background-color: #5a32a3; }
 
         /* TABLA DE HISTORIAL */
         .history-table {
@@ -188,7 +197,7 @@
         /* CONFIGURACIÓN DE LA HOJA OFICIAL INTERNA (IDÉNTICO AL ORIGINAL) */
         .print-page {
             background: #ffffff;
-            padding: 45px 55px;            /* ← ORIGINAL */
+            padding: 45px 55px;
             box-sizing: border-box;
             width: 100%;
             color: #000000 !important;
@@ -313,7 +322,6 @@
             display: inline-block;
             font-weight: bold;
             padding-bottom: 1px;
-            /* SIN flex-grow → el ancho lo da el texto */
         }
 
         /* Tabla de equipos con ancho automático y columna N° muy corta */
@@ -326,7 +334,7 @@
         .data-table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: auto;                /* columnas se ajustan al contenido */
+            table-layout: auto;
         }
         .data-table th,
         .data-table td {
@@ -336,7 +344,6 @@
             font-size: 0.8em;
         }
         .data-table th { font-weight: bold; }
-        /* Primera columna (N°) muy estrecha */
         .data-table th:first-child,
         .data-table td:first-child {
             width: 1%;
@@ -374,7 +381,7 @@
         .report-box {
             width: 100%;
             border: 1.5px solid #000;
-            min-height: 410px;           /* ← ORIGINAL */
+            min-height: 410px;
             padding: 15px;
             box-sizing: border-box;
             white-space: pre-wrap;
@@ -497,9 +504,25 @@
                 </div>
             </div>
 
+            <!-- QUIÉN SOLICITA: SELECT + INPUT EDITABLE -->
             <div class="form-group">
-                <label for="in-solicitante">Quién solicita:</label>
-                <input type="text" id="in-solicitante">
+                <label for="in-solicitante-select">Quién solicita (área / dependencia):</label>
+                <select id="in-solicitante-select" onchange="alCambiarSolicitanteSelect()">
+                    <option value="">-- SELECCIONE --</option>
+                    <option value="UNIDAD DE TECNOLOGIA DE LA INFORMACION Y COMUNICACIONES HN.PNP.LNS">UNIDAD DE TECNOLOGIA DE LA INFORMACION Y COMUNICACIONES HN.PNP.LNS</option>
+                    <option value="DIRECCIÓN HN.PNP.LNS">DIRECCIÓN HN.PNP.LNS</option>
+                    <option value="SECRETARÍA HN.PNP.LNS">SECRETARÍA HN.PNP.LNS</option>
+                    <option value="DIVISIÓN DE AYUDA AL DIAGNOSTICO Y TRATAMIENTO HN.PNP.LNS">DIVISIÓN DE AYUDA AL DIAGNOSTICO Y TRATAMIENTO HN.PNP.LNS</option>
+                    <option value="DIVISION DE CIRUGIA Y ESPECIALIDADES QUIRURGICAS HN.PNP.LNS">DIVISION DE CIRUGIA Y ESPECIALIDADES QUIRURGICAS HN.PNP.LNS</option>
+                    <option value="DIVISIÓN DE EMERGENCIA Y AREAS CRÍTICAS HN.PNP.LNS">DIVISIÓN DE EMERGENCIA Y AREAS CRÍTICAS HN.PNP.LNS</option>
+                    <option value="DIVISION DE MEDICINA Y ESPECIALIDADES MEDICAS HN.PNP.LNS">DIVISION DE MEDICINA Y ESPECIALIDADES MEDICAS HN.PNP.LNS</option>
+                    <option value="DIVISIÓN MATERNIDAD INFANTIL HN.PNP.LNS">DIVISIÓN MATERNIDAD INFANTIL HN.PNP.LNS</option>
+                    <option value="OTROS">OTROS (especificar abajo)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="in-solicitante">Detalle / Especifique (editable):</label>
+                <input type="text" id="in-solicitante" placeholder="Escriba o edite el área solicitante...">
             </div>
 
             <div class="form-group">
@@ -676,9 +699,58 @@
         const val = (id) => getEl(id).value.trim();
         const setVal = (id, value) => { getEl(id).value = value; };
         const toUpper = (texto) => {
+            if (!texto) return '';
             const mapa = { 'á':'Á','é':'É','í':'Í','ó':'Ó','ú':'Ú','ü':'Ü','ñ':'Ñ' };
             return texto.toLowerCase().split('').map(l => mapa[l] || l.toUpperCase()).join('');
         };
+
+        // ---------- NUEVO: manejo del select "Quién solicita" ----------
+        function alCambiarSolicitanteSelect() {
+            const select = getEl('in-solicitante-select');
+            const input = getEl('in-solicitante');
+            if (select.value === '') {
+                // No hacer nada si es la opción vacía
+                return;
+            }
+            if (select.value === 'OTROS') {
+                // Limpiar el input para que el usuario escriba
+                input.value = '';
+                input.focus();
+                input.placeholder = 'Escriba aquí el área solicitante...';
+            } else {
+                input.value = select.value;
+                input.placeholder = 'Puede editar este texto...';
+            }
+        }
+
+        // Restaura el select y el input a partir de un valor guardado
+        function restaurarSolicitante(valorGuardado) {
+            const select = getEl('in-solicitante-select');
+            const input = getEl('in-solicitante');
+            const valor = valorGuardado || '';
+
+            // Buscar si coincide exactamente con una opción (excepto OTROS)
+            let encontrado = false;
+            for (let i = 0; i < select.options.length; i++) {
+                const opt = select.options[i];
+                if (opt.value === valor && opt.value !== '' && opt.value !== 'OTROS') {
+                    select.value = opt.value;
+                    encontrado = true;
+                    break;
+                }
+            }
+            if (encontrado) {
+                input.value = valor;
+                input.placeholder = 'Puede editar este texto...';
+            } else {
+                // Si no coincide, seleccionar OTROS y poner el valor en el input
+                select.value = valor ? 'OTROS' : '';
+                input.value = valor;
+                input.placeholder = valor ? 'Puede editar este texto...' : 'Escriba o edite el área solicitante...';
+            }
+        }
+
+        // ---------------------------------------------------------
 
         function activarMayusculas() {
             document.querySelectorAll('#panel-formulario input[type="text"], #panel-formulario textarea').forEach(el => {
@@ -842,6 +914,7 @@
                     <td class="action-btns">
                         <button class="btn-action btn-blue" onclick="verOrden(${o.id})">Ver</button>
                         <button class="btn-action btn-orange" onclick="cargarParaEditar(${o.id})">Editar</button>
+                        <button class="btn-action btn-purple" onclick="copiarOrden(${o.id})">Copiar</button>
                         <button class="btn-action btn-red" onclick="eliminarOrden(${o.id})">X</button>
                     </td>
                 `;
@@ -888,9 +961,13 @@
             document.body.style.overflow = 'auto';
         }
 
+        // ---------- NUEVA FUNCIÓN: cargar para editar (mejorada) ----------
         function cargarParaEditar(id) {
             const orden = ordenes.find(o => o.id === id);
             if (!orden) return;
+
+            // Cerrar visor PDF si estuviera abierto
+            cerrarVisorPDF();
 
             getEl('form-title').innerText = "Modificar Orden de Trabajo";
             setVal('in-id-edicion', orden.id);
@@ -900,14 +977,82 @@
             setVal('in-grado', orden.grado||'');
             setVal('in-encargado-nombre', orden.encargadoNombre||'');
             setVal('in-telefono', orden.telefono||'');
-            setVal('in-solicitante', orden.solicitante);
+            restaurarSolicitante(orden.solicitante || '');
             setVal('in-trabajo', orden.trabajo);
             setVal('in-informe', orden.informe);
             cargarEquiposEnFormulario(orden.equipos || []);
             getEl('btn-cancelar').style.display = 'block';
 
-            verOrden(id);
-            getEl('panel-formulario').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Resaltar panel y hacer scroll suave
+            const panel = getEl('panel-formulario');
+            panel.classList.add('editando');
+            setTimeout(() => panel.classList.remove('editando'), 2000);
+
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ---------- NUEVA FUNCIÓN: copiar orden ----------
+        function copiarOrden(id) {
+            const orden = ordenes.find(o => o.id === id);
+            if (!orden) return;
+
+            // Cerrar visor PDF si estuviera abierto
+            cerrarVisorPDF();
+
+            // Cargar datos en el formulario como NUEVA orden (sin id de edición)
+            getEl('form-title').innerText = "Nueva Orden de Trabajo (copia)";
+            setVal('in-id-edicion', '');                  // Importante: no es edición
+            setVal('in-grado', orden.grado || '');
+            setVal('in-encargado-nombre', orden.encargadoNombre || '');
+            setVal('in-telefono', orden.telefono || '');
+            restaurarSolicitante(orden.solicitante || '');
+            setVal('in-trabajo', orden.trabajo || '');
+            setVal('in-informe', orden.informe || '');
+            cargarEquiposEnFormulario(orden.equipos || []);
+
+            // Configurar el número de orden: preguntar si desea cambiarlo
+            const numeroOriginal = orden.correlativo || '';
+            const nuevoNumero = prompt(
+                `Copia de la orden N° ${numeroOriginal}-${anioActual}.\n\n` +
+                `¿Desea cambiar el número de orden de trabajo?\n` +
+                `- Aceptar: escriba el nuevo número correlativo (ej. 0005)\n` +
+                `- Cancelar: se generará el siguiente número automático`,
+                ''
+            );
+
+            if (nuevoNumero !== null) {
+                // El usuario aceptó; validar que no esté vacío y no duplicado
+                const num = nuevoNumero.trim();
+                if (num === '') {
+                    alert("No ingresó número. Se generará el siguiente automático.");
+                    getEl('chk-auto').checked = true;
+                    configurarModoNumero();
+                } else {
+                    // Verificar duplicado
+                    if (ordenes.some(o => o.correlativo === toUpper(num) && o.id !== id)) {
+                        alert("Ese número de orden ya existe. Se generará el siguiente automático.");
+                        getEl('chk-auto').checked = true;
+                        configurarModoNumero();
+                    } else {
+                        getEl('chk-auto').checked = false;
+                        getEl('in-correlativo').disabled = false;
+                        setVal('in-correlativo', toUpper(num));
+                    }
+                }
+            } else {
+                // Canceló: generar siguiente automático
+                getEl('chk-auto').checked = true;
+                configurarModoNumero();
+            }
+
+            // Mostrar botón cancelar edición (para salir del modo copia)
+            getEl('btn-cancelar').style.display = 'block';
+
+            // Resaltar panel y hacer scroll
+            const panel = getEl('panel-formulario');
+            panel.classList.add('editando');
+            setTimeout(() => panel.classList.remove('editando'), 2000);
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function eliminarOrden(id) {
@@ -928,6 +1073,8 @@
             setVal('in-grado', '');
             setVal('in-encargado-nombre', '');
             setVal('in-telefono', '');
+            // Limpiar select e input de solicitante
+            setVal('in-solicitante-select', '');
             setVal('in-solicitante', '');
             setVal('in-trabajo', '');
             setVal('in-informe', '');

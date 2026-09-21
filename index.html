@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Órdenes de Trabajo - PNP</title>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
+        * { box-sizing: border-box; }
         body {
             font-family: Arial, sans-serif;
             background-color: #f0f2f5;
@@ -16,7 +17,133 @@
             color: #333;
         }
 
-        /* DISEÑO EN DOS COLUMNAS (Solo pantalla) */
+        /* ===================== LOGIN ===================== */
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #003366 0%, #0056b3 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+        .login-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            max-width: 480px;
+            width: 100%;
+            padding: 35px 30px;
+        }
+        .login-header { text-align: center; margin-bottom: 25px; }
+        .login-header img { max-width: 90px; margin-bottom: 10px; }
+        .login-header h1 {
+            font-size: 1.15em;
+            color: #003366;
+            margin: 5px 0;
+            line-height: 1.3;
+        }
+        .login-header p { font-size: 0.85em; color: #666; margin: 5px 0 0; }
+        .login-step { display: none; }
+        .login-step.active { display: block; animation: fadeIn 0.35s ease; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .login-step label {
+            display: block;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 6px;
+            margin-top: 14px;
+        }
+        .login-step input,
+        .login-step select {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1.5px solid #ccc;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        .login-step input:focus,
+        .login-step select:focus { outline: none; border-color: #0056b3; }
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #0056b3;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 22px;
+            transition: background 0.2s;
+        }
+        .login-btn:hover { background: #003d80; }
+        .login-btn:disabled { background: #999; cursor: not-allowed; }
+        .login-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            margin-top: 12px;
+            display: none;
+        }
+        .login-hint {
+            font-size: 0.78em;
+            color: #888;
+            text-align: center;
+            margin-top: 15px;
+        }
+        .login-progress {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .login-progress span {
+            width: 32px; height: 5px;
+            border-radius: 3px;
+            background: #dee2e6;
+            transition: background 0.3s;
+        }
+        .login-progress span.active { background: #0056b3; }
+        .login-progress span.done { background: #28a745; }
+
+        /* ===================== APP ===================== */
+        .app-hidden { display: none !important; }
+        .topbar {
+            max-width: 1400px;
+            margin: 0 auto 15px auto;
+            background: #003366;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .topbar-info { font-size: 0.9em; line-height: 1.3; }
+        .topbar-info strong { color: #ffd700; }
+        .topbar-actions button {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85em;
+        }
+        .topbar-actions button:hover { background: #b02a37; }
+
         .workspace {
             display: grid;
             grid-template-columns: 450px 1fr;
@@ -24,7 +151,6 @@
             max-width: 1400px;
             margin: 0 auto;
         }
-
         .panel {
             background: #ffffff;
             padding: 20px;
@@ -35,22 +161,14 @@
         }
         .panel-left { border-left: 5px solid #0056b3; }
         .panel-right { border-left: 5px solid #28a745; }
-
-        /* Resaltado temporal al editar */
         .panel-left.editando {
             box-shadow: 0 0 0 3px #ffc107, 0 4px 12px rgba(0,0,0,0.15);
             border-left-color: #ffc107;
         }
-
         h2 { margin-top: 0; color: #333; font-size: 1.3em; margin-bottom: 15px; }
         h3 { font-size: 1em; margin: 10px 0 5px; color: #0056b3; }
 
-        /* FORMULARIO */
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 12px;
-        }
+        .form-group { display: flex; flex-direction: column; margin-bottom: 12px; }
         .form-group label {
             font-size: 0.85em;
             font-weight: bold;
@@ -66,19 +184,13 @@
             font-size: 0.95em;
         }
         .form-group textarea { resize: vertical; height: 100px; }
-
-        .row-inline {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
+        .row-inline { display: flex; gap: 10px; align-items: center; }
         .checkbox-group {
             flex-direction: row;
             align-items: center;
             gap: 5px;
             margin-top: 5px;
         }
-
         .equipo-block {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -100,7 +212,6 @@
         .btn-sm.btn-remove { background-color: #dc3545; }
         .btn-sm.btn-remove:hover { background-color: #bd2130; }
 
-        /* BOTONES */
         .button-group {
             display: flex;
             flex-direction: column;
@@ -129,7 +240,6 @@
         .btn-purple { background-color: #6f42c1; }
         .btn-purple:hover { background-color: #5a32a3; }
 
-        /* TABLA DE HISTORIAL */
         .history-table {
             width: 100%;
             border-collapse: collapse;
@@ -153,15 +263,13 @@
             color: white;
         }
 
-        /* VISOR DE PDF FLOTANTE MODAL */
+        /* ===================== VISOR PDF ===================== */
         .pdf-viewer-modal {
             display: none;
             position: fixed;
             z-index: 9999;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.75);
             backdrop-filter: blur(4px);
             overflow-y: auto;
@@ -194,19 +302,32 @@
         }
         .close-viewer:hover { background: #000; }
 
-        /* CONFIGURACIÓN DE LA HOJA OFICIAL INTERNA (IDÉNTICO AL ORIGINAL) */
+        /* ===================== HOJA OFICIAL ===================== */
         .print-page {
             background: #ffffff;
             padding: 45px 55px;
             box-sizing: border-box;
             width: 100%;
             color: #000000 !important;
+            position: relative;
         }
-        .print-page * {
-            color: #000000 !important;
-        }
+        .print-page * { color: #000000 !important; }
 
-        /* Cabecera Estructural Alineada */
+        .watermark {
+            position: absolute;
+            bottom: 12px;
+            right: 20px;
+            font-size: 0.55em;
+            font-style: italic;
+            text-align: right;
+            line-height: 1.3;
+            max-width: 260px;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .print-page .watermark,
+        .print-page .watermark * { color: #999999 !important; }
+
         .header-layout {
             display: flex;
             justify-content: space-between;
@@ -214,22 +335,9 @@
             width: 100%;
             margin-bottom: 5px;
         }
-        .header-left {
-            width: 160px;
-            text-align: center;
-            flex-shrink: 0;
-        }
-        .header-left img {
-            max-width: 95px;
-            max-height: 75px;
-            object-fit: contain;
-        }
-        .hospital-tag {
-            font-size: 0.65em;
-            font-weight: bold;
-            margin-top: 2px;
-            line-height: 1.1;
-        }
+        .header-left { width: 160px; text-align: center; flex-shrink: 0; }
+        .header-left img { max-width: 95px; max-height: 75px; object-fit: contain; }
+        .hospital-tag { font-size: 0.65em; font-weight: bold; margin-top: 2px; line-height: 1.1; }
 
         .header-text-line-2-container {
             flex-grow: 1;
@@ -242,21 +350,11 @@
             padding: 5px 12px;
             text-align: left;
             display: inline-block;
-            font-family: Arial, sans-serif;
             line-height: 1.3;
             max-width: 280px;
         }
-        .coordinar-title {
-            font-weight: bold;
-            font-size: 0.85em;
-            display: block;
-            margin-bottom: 2px;
-        }
-        .coordinar-body {
-            font-weight: normal;
-            font-size: 0.75em;
-            display: block;
-        }
+        .coordinar-title { font-weight: bold; font-size: 0.85em; display: block; margin-bottom: 2px; }
+        .coordinar-body { font-weight: normal; font-size: 0.75em; display: block; }
 
         .header-center-right {
             width: 240px;
@@ -280,8 +378,6 @@
             width: 100%;
             margin-top: 2px;
         }
-
-        /* Título Principal */
         .main-title-block {
             display: flex;
             justify-content: space-between;
@@ -302,8 +398,6 @@
             text-align: right;
             white-space: nowrap;
         }
-
-        /* Campos Dinámicos con líneas punteadas (SOLO BAJO EL TEXTO) */
         .info-field-row {
             margin-bottom: 12px;
             display: flex;
@@ -323,8 +417,6 @@
             font-weight: bold;
             padding-bottom: 1px;
         }
-
-        /* Tabla de equipos con ancho automático y columna N° muy corta */
         .data-table-container {
             width: 100%;
             display: flex;
@@ -350,16 +442,10 @@
             white-space: nowrap;
             padding: 6px 2px;
         }
-
-        /* Sello (con saltos de línea originales) */
         .stamp-space { width: 100%; line-height: 1.2; }
-
-        /* Fecha */
         .date-container-row { margin: 10px 0; font-size: 0.95em; }
         .date-label { font-weight: bold; margin-right: 10px; }
         .date-value { font-weight: normal; }
-
-        /* Caja de Informe (tamaño original) */
         .full-width-report { width: 100%; margin-top: 15px; box-sizing: border-box; }
         .report-header-line {
             display: flex;
@@ -369,7 +455,6 @@
         }
         .report-title { font-size: 1.15em; font-weight: bold; }
         .materials-fixed-text { font-size: 1.15em; font-weight: bold; }
-
         .square-span {
             font-size: 1.2em;
             margin-left: 4px;
@@ -377,7 +462,6 @@
             vertical-align: middle;
             font-weight: normal;
         }
-
         .report-box {
             width: 100%;
             border: 1.5px solid #000;
@@ -387,8 +471,6 @@
             white-space: pre-wrap;
             font-size: 0.95em;
         }
-
-        /* Firmas */
         .signatures-container {
             margin-top: 40px;
             width: 100%;
@@ -407,10 +489,9 @@
         }
         .line-dots { margin-bottom: 3px; letter-spacing: 0.5px; font-weight: normal; }
 
-        /* IMPRESIÓN */
         @media print {
             body { background: none; padding: 0; margin: 0; }
-            .workspace,
+            .workspace, .topbar,
             .pdf-viewer-toolbar,
             .close-viewer { display: none !important; }
             .pdf-viewer-modal {
@@ -428,271 +509,337 @@
 </head>
 <body>
 
-    <div class="workspace">
-
-        <div class="panel panel-left" id="panel-formulario">
-            <h2 id="form-title">Nueva Orden de Trabajo</h2>
-            <input type="hidden" id="in-id-edicion" value="">
-
-            <div class="form-group">
-                <label>Número de Orden:</label>
-                <div class="row-inline">
-                    <input type="text" id="in-correlativo" style="flex-grow: 1;">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="chk-auto" checked>
-                        <label for="chk-auto">Auto</label>
-                    </div>
-                </div>
+    <!-- ============================= LOGIN ============================= -->
+    <div class="login-overlay" id="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <img src="img/logo.png" alt="Logo" onerror="this.style.display='none'">
+                <h1>Bienvenido al Sistema de Emisión de Órdenes de Trabajo</h1>
+                <p>Unidad de Tecnología de la Información y Comunicaciones HN.PNP.LNS</p>
             </div>
 
-            <div class="form-group">
-                <label style="color: #28a745; font-weight: bold;">Escudo / Sello Institucional:</label>
-                <div style="font-size: 0.85em; color: #666; background: #e9ecef; padding: 8px; border-radius: 4px; border: 1px solid #ced4da;">
-                    Cargando automáticamente desde <code>img/logo.png</code>
-                </div>
+            <div class="login-progress">
+                <span id="prog-1" class="active"></span>
+                <span id="prog-2"></span>
+                <span id="prog-3"></span>
             </div>
 
-            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 12px; border: 1px solid #dee2e6;">
-                <span style="font-size: 0.85em; font-weight: bold; color: #0056b3; display: block; margin-bottom: 8px;">Datos para Coordinar el trabajo:</span>
-
-                <div class="form-group">
-                    <label for="in-grado">Grado / Tratamiento:</label>
-                    <select id="in-grado">
-                        <option value="">-- SELECCIONE --</option>
-                        <option value="CRNL PNP">CRNL PNP</option>
-                        <option value="CRNL SPNP">CRNL SPNP</option>
-                        <option value="CMDTE PNP">CMDTE PNP</option>
-                        <option value="CMDTE SPNP">CMDTE SPNP</option>
-                        <option value="MAY PNP">MAY PNP</option>
-                        <option value="MAY SPNP">MAY SPNP</option>
-                        <option value="CAP PNP">CAP PNP</option>
-                        <option value="CAP SPNP">CAP SPNP</option>
-                        <option value="TNTE PNP">TNTE PNP</option>
-                        <option value="ALF PNP">ALF PNP</option>
-                        <option value="SS PNP">SS PNP</option>
-                        <option value="SS SPNP">SS SPNP</option>
-                        <option value="SB PNP">SB PNP</option>
-                        <option value="SB SPNP">SB SPNP</option>
-                        <option value="ST1 PNP">ST1 PNP</option>
-                        <option value="ST1 SPNP">ST1 SPNP</option>
-                        <option value="ST2 PNP">ST2 PNP</option>
-                        <option value="ST2 SPNP">ST2 SPNP</option>
-                        <option value="ST3 PNP">ST3 PNP</option>
-                        <option value="ST3 SPNP">ST3 SPNP</option>
-                        <option value="S1 PNP">S1 PNP</option>
-                        <option value="S1 SPNP">S1 SPNP</option>
-                        <option value="S2 PNP">S2 PNP</option>
-                        <option value="S2 SPNP">S2 SPNP</option>
-                        <option value="S3 PNP">S3 PNP</option>
-                        <option value="S3 SPNP">S3 SPNP</option>
-                        <option value="EMPLEADO CIVIL">EMPLEADO CIVIL</option>
-                        <option value="LOCADOR DE SERVICIOS">LOCADOR DE SERVICIOS</option>
-                        <option value="SEÑOR">SEÑOR</option>
-                        <option value="SEÑORA">SEÑORA</option>
-                        <option value="SEÑORITA">SEÑORITA</option>
-                        <option value="JOVEN">JOVEN</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="in-encargado-nombre">Nombres y Apellidos:</label>
-                    <input type="text" id="in-encargado-nombre" placeholder="JAVIER LEANDRO MASIAS">
-                </div>
-                <div class="form-group">
-                    <label for="in-telefono" style="color: #dc3545;">Número de Celular (Obligatorio - Max 9 números *):</label>
-                    <input type="text" id="in-telefono" placeholder="933456543" maxlength="9">
-                </div>
+            <div class="login-step active" id="step-1">
+                <label for="login-dni">Ingrese su DNI:</label>
+                <input type="text" id="login-dni" maxlength="8" placeholder="Ej. 01020304" autocomplete="off">
+                <button class="login-btn" onclick="verificarDni()">Continuar</button>
+                <div class="login-error" id="err-1"></div>
             </div>
 
-            <!-- QUIÉN SOLICITA: SELECT + INPUT EDITABLE -->
-            <div class="form-group">
-                <label for="in-solicitante-select">Quién solicita (área / dependencia):</label>
-                <select id="in-solicitante-select" onchange="alCambiarSolicitanteSelect()">
-                    <option value="">-- SELECCIONE --</option>
-                    <option value="UNIDAD DE TECNOLOGIA DE LA INFORMACION Y COMUNICACIONES HN.PNP.LNS">UNIDAD DE TECNOLOGIA DE LA INFORMACION Y COMUNICACIONES HN.PNP.LNS</option>
-                    <option value="DIRECCIÓN HN.PNP.LNS">DIRECCIÓN HN.PNP.LNS</option>
-                    <option value="SECRETARÍA HN.PNP.LNS">SECRETARÍA HN.PNP.LNS</option>
-                    <option value="DIVISIÓN DE AYUDA AL DIAGNOSTICO Y TRATAMIENTO HN.PNP.LNS">DIVISIÓN DE AYUDA AL DIAGNOSTICO Y TRATAMIENTO HN.PNP.LNS</option>
-                    <option value="DIVISION DE CIRUGIA Y ESPECIALIDADES QUIRURGICAS HN.PNP.LNS">DIVISION DE CIRUGIA Y ESPECIALIDADES QUIRURGICAS HN.PNP.LNS</option>
-                    <option value="DIVISIÓN DE EMERGENCIA Y AREAS CRÍTICAS HN.PNP.LNS">DIVISIÓN DE EMERGENCIA Y AREAS CRÍTICAS HN.PNP.LNS</option>
-                    <option value="DIVISION DE MEDICINA Y ESPECIALIDADES MEDICAS HN.PNP.LNS">DIVISION DE MEDICINA Y ESPECIALIDADES MEDICAS HN.PNP.LNS</option>
-                    <option value="DIVISIÓN MATERNIDAD INFANTIL HN.PNP.LNS">DIVISIÓN MATERNIDAD INFANTIL HN.PNP.LNS</option>
-                    <option value="OTROS">OTROS (especificar abajo)</option>
+            <div class="login-step" id="step-2">
+                <label>Seleccione su nombre completo correcto:</label>
+                <select id="login-nombre-select">
+                    <option value="">-- Seleccione --</option>
                 </select>
-            </div>
-            <div class="form-group">
-                <label for="in-solicitante">Detalle / Especifique (editable):</label>
-                <input type="text" id="in-solicitante" placeholder="Escriba o edite el área solicitante...">
+                <button class="login-btn" onclick="verificarNombre()">Continuar</button>
+                <div class="login-error" id="err-2"></div>
             </div>
 
-            <div class="form-group">
-                <label for="in-trabajo">Trabajo por efectuar:</label>
-                <input type="text" id="in-trabajo">
+            <div class="login-step" id="step-3">
+                <label>Seleccione su fecha de nacimiento correcta:</label>
+                <select id="login-fecha-select">
+                    <option value="">-- Seleccione --</option>
+                </select>
+                <button class="login-btn" onclick="verificarFecha()">Ingresar al Sistema</button>
+                <div class="login-error" id="err-3"></div>
             </div>
 
-            <!-- SECCIÓN DE EQUIPOS DINÁMICA -->
-            <div id="contenedor-equipos">
-                <div class="equipo-block" id="equipo-1">
-                    <h3>Equipo N° 1</h3>
-                    <div class="form-group"><label>Nombre del Equipo:</label><input type="text" class="in-eq-nombre" id="in-nombre-1"></div>
-                    <div class="form-group"><label>Marca:</label><input type="text" class="in-eq-marca" id="in-marca-1"></div>
-                    <div class="form-group"><label>Modelo:</label><input type="text" class="in-eq-modelo" id="in-modelo-1"></div>
-                    <div class="form-group"><label>Serie:</label><input type="text" class="in-eq-serie" id="in-serie-1"></div>
-                    <div class="form-group">
-                        <label>Año de Adquisición (1950 - 2026):</label>
-                        <input type="text" class="in-eq-anio" id="in-anio-1" placeholder="Ej. 2019" maxlength="4">
-                    </div>
-                </div>
-
-                <div class="equipo-block" id="equipo-2" style="display: none;">
-                    <h3>Equipo N° 2</h3>
-                    <div class="form-group"><label>Nombre del Equipo:</label><input type="text" class="in-eq-nombre" id="in-nombre-2"></div>
-                    <div class="form-group"><label>Marca:</label><input type="text" class="in-eq-marca" id="in-marca-2"></div>
-                    <div class="form-group"><label>Modelo:</label><input type="text" class="in-eq-modelo" id="in-modelo-2"></div>
-                    <div class="form-group"><label>Serie:</label><input type="text" class="in-eq-serie" id="in-serie-2"></div>
-                    <div class="form-group">
-                        <label>Año de Adquisición (1950 - 2026):</label>
-                        <input type="text" class="in-eq-anio" id="in-anio-2" placeholder="Ej. 2019" maxlength="4">
-                    </div>
-                    <button type="button" class="btn-sm btn-remove" onclick="quitarEquipo2()">Quitar Equipo N° 2</button>
-                </div>
-
-                <button type="button" class="btn-sm btn-add" id="btn-agregar-equipo" onclick="agregarEquipo2()">
-                    + Agregar otro equipo (máx. 2)
-                </button>
-            </div>
-
-            <div class="form-group">
-                <label for="in-informe">Informe del Trabajo:</label>
-                <textarea id="in-informe" placeholder="Escriba aquí los detalles del informe técnico efectuado..."></textarea>
-            </div>
-
-            <div class="button-group">
-                <button class="btn btn-green" onclick="guardarOrden()">Guardar Orden</button>
-                <button class="btn btn-blue" onclick="cancelarEdicion()" id="btn-cancelar" style="display:none;">Cancelar Edición</button>
-            </div>
+            <div class="login-hint">🔒 Acceso restringido. Solo personal autorizado.</div>
         </div>
-
-        <div class="panel panel-right">
-            <h2>Historial de Órdenes Registradas</h2>
-            <table class="history-table">
-                <thead>
-                    <tr>
-                        <th>N° Orden</th>
-                        <th>Fecha</th>
-                        <th>Solicitante</th>
-                        <th>Equipo(s)</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="lista-ordenes"></tbody>
-            </table>
-        </div>
-
     </div>
 
-    <!-- MODAL VISOR PDF -->
-    <div id="pdf-viewer-container" class="pdf-viewer-modal">
-        <div class="pdf-viewer-toolbar">
-            <button class="close-viewer" onclick="cerrarVisorPDF()">❌ Cerrar Vista Previa</button>
-            <div style="display:flex; gap:10px;">
-                <button class="btn btn-blue" onclick="window.print()" style="padding: 10px 25px;">Imprimir Orden de Trabajo 🖨️</button>
+    <!-- ============================= APP ============================= -->
+    <div id="app-principal" class="app-hidden">
+
+        <div class="topbar">
+            <div class="topbar-info">
+                👤 Bienvenido: <strong id="user-welcome">--</strong>
+                &nbsp;|&nbsp; DNI: <span id="user-dni">--</span>
+                &nbsp;|&nbsp; Cel: <span id="user-cel">--</span>
+            </div>
+            <div class="topbar-actions">
+                <button onclick="cerrarSesion()">🚪 Cerrar Sesión</button>
             </div>
         </div>
 
-        <div class="pdf-wrapper" id="area-imprimible-pdf">
-            <div class="print-page">
-                <div class="header-layout">
-                    <div class="header-left">
-                        <img id="view-logo" src="img/logo.png" alt="[Escudo]">
-                        <div class="hospital-tag">Hospital Nacional PNP<br>"Luis N. Saenz"</div>
-                    </div>
-                    <div class="header-text-line-2-container">
-                        <div class="coordinar-box">
-                            <span class="coordinar-title">CORDINAR CON:</span>
-                            <span class="coordinar-body" id="view-linea-grado-nombre"></span>
-                            <span class="coordinar-body" id="view-linea-celular"></span>
+        <div class="workspace">
+            <div class="panel panel-left" id="panel-formulario">
+                <h2 id="form-title">Nueva Orden de Trabajo</h2>
+                <input type="hidden" id="in-id-edicion" value="">
+
+                <div class="form-group">
+                    <label>Número de Orden:</label>
+                    <div class="row-inline">
+                        <input type="text" id="in-correlativo" style="flex-grow: 1;">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="chk-auto" checked>
+                            <label for="chk-auto">Auto</label>
                         </div>
                     </div>
-                    <div class="header-center-right">
-                        <div class="header-text-line-1">Oficina de Administracion</div>
-                        <div class="header-text-line-sub">Seccion de Servicios Generales</div>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 12px; border: 1px solid #dee2e6;">
+                    <span style="font-size: 0.85em; font-weight: bold; color: #0056b3; display: block; margin-bottom: 8px;">Datos para Coordinar el trabajo:</span>
+
+                    <div class="form-group">
+                        <label for="in-grado">Grado / Tratamiento:</label>
+                        <select id="in-grado">
+                            <option value="">-- SELECCIONE --</option>
+                            <option value="CRNL PNP">CRNL PNP</option>
+                            <option value="CRNL SPNP">CRNL SPNP</option>
+                            <option value="CMDTE PNP">CMDTE PNP</option>
+                            <option value="CMDTE SPNP">CMDTE SPNP</option>
+                            <option value="MAY PNP">MAY PNP</option>
+                            <option value="MAY SPNP">MAY SPNP</option>
+                            <option value="CAP PNP">CAP PNP</option>
+                            <option value="CAP SPNP">CAP SPNP</option>
+                            <option value="TNTE PNP">TNTE PNP</option>
+                            <option value="ALF PNP">ALF PNP</option>
+                            <option value="SS PNP">SS PNP</option>
+                            <option value="SS SPNP">SS SPNP</option>
+                            <option value="SB PNP">SB PNP</option>
+                            <option value="SB SPNP">SB SPNP</option>
+                            <option value="ST1 PNP">ST1 PNP</option>
+                            <option value="ST1 SPNP">ST1 SPNP</option>
+                            <option value="ST2 PNP">ST2 PNP</option>
+                            <option value="ST2 SPNP">ST2 SPNP</option>
+                            <option value="ST3 PNP">ST3 PNP</option>
+                            <option value="ST3 SPNP">ST3 SPNP</option>
+                            <option value="S1 PNP">S1 PNP</option>
+                            <option value="S1 SPNP">S1 SPNP</option>
+                            <option value="S2 PNP">S2 PNP</option>
+                            <option value="S2 SPNP">S2 SPNP</option>
+                            <option value="S3 PNP">S3 PNP</option>
+                            <option value="S3 SPNP">S3 SPNP</option>
+                            <option value="EMPLEADO CIVIL">EMPLEADO CIVIL</option>
+                            <option value="LOCADOR DE SERVICIOS">LOCADOR DE SERVICIOS</option>
+                            <option value="SEÑOR">SEÑOR</option>
+                            <option value="SEÑORA">SEÑORA</option>
+                            <option value="SEÑORITA">SEÑORITA</option>
+                            <option value="JOVEN">JOVEN</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="in-encargado-nombre">Nombres y Apellidos:</label>
+                        <input type="text" id="in-encargado-nombre" placeholder="JAVIER LEANDRO MASIAS">
+                    </div>
+                    <div class="form-group">
+                        <label for="in-telefono" style="color: #dc3545;">Número de Celular (Obligatorio - Max 9 números *):</label>
+                        <input type="text" id="in-telefono" placeholder="933456543" maxlength="9">
                     </div>
                 </div>
 
-                <div class="main-title-block">
-                    <div class="title-center">Orden de Trabajo</div>
-                    <div class="number-right">N°<span id="view-correlativo"></span></div>
+                <div class="form-group">
+                    <label for="in-solicitante-select">Quién solicita (área / dependencia):</label>
+                    <select id="in-solicitante-select" onchange="alCambiarSolicitanteSelect()">
+                        <option value="">-- SELECCIONE --</option>
+                        <option value="DIRECCIÓN HN.PNP.LNS">DIRECCIÓN HN.PNP.LNS</option>
+                        <option value="DIVISIÓN DE AYUDA AL DIAGNOSTICO Y TRATAMIENTO HN.PNP.LNS">DIVISIÓN DE AYUDA AL DIAGNOSTICO Y TRATAMIENTO HN.PNP.LNS</option>
+                        <option value="DIVISIÓN DE EMERGENCIA Y AREAS CRÍTICAS HN.PNP.LNS">DIVISIÓN DE EMERGENCIA Y AREAS CRÍTICAS HN.PNP.LNS</option>
+                        <option value="DIVISIÓN MATERNIDAD INFANTIL HN.PNP.LNS">DIVISIÓN MATERNIDAD INFANTIL HN.PNP.LNS</option>
+                        <option value="DIVISION DE CIRUGIA Y ESPECIALIDADES QUIRURGICAS HN.PNP.LNS">DIVISION DE CIRUGIA Y ESPECIALIDADES QUIRURGICAS HN.PNP.LNS</option>
+                        <option value="DIVISION DE MEDICINA Y ESPECIALIDADES MEDICAS HN.PNP.LNS">DIVISION DE MEDICINA Y ESPECIALIDADES MEDICAS HN.PNP.LNS</option>
+                        <option value="SECRETARÍA HN.PNP.LNS">SECRETARÍA HN.PNP.LNS</option>
+                        <option value="UNIDAD DE TECNOLOGIA DE LA INFORMACION Y COMUNICACIONES HN.PNP.LNS">UNIDAD DE TECNOLOGIA DE LA INFORMACION Y COMUNICACIONES HN.PNP.LNS</option>
+                        <option value="OTROS">OTROS (especificar abajo)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="in-solicitante">Detalle / Especifique (editable):</label>
+                    <input type="text" id="in-solicitante" placeholder="Escriba o edite el área solicitante...">
                 </div>
 
-                <div class="info-field-row">
-                    <span class="info-field-label">Quién solicita :</span>
-                    <span class="info-field-value-dots" id="view-solicitante"></span>
+                <div class="form-group">
+                    <label for="in-trabajo">Trabajo por efectuar:</label>
+                    <input type="text" id="in-trabajo">
                 </div>
 
-                <div class="info-field-row">
-                    <span class="info-field-label">Trabajo por efectuar:</span>
-                    <span class="info-field-value-dots" id="view-trabajo"></span>
-                </div>
-
-                <div class="data-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>N°</th>
-                                <th>Nombre</th>
-                                <th>Marca</th>
-                                <th>Modelo</th>
-                                <th>Serie</th>
-                                <th>Año de Adq.</th>
-                            </tr>
-                        </thead>
-                        <tbody id="view-tabla-equipos"></tbody>
-                    </table>
-                </div>
-
-                <!-- Sello con los saltos de línea originales -->
-                <div class="stamp-space">
-                    <br><br><br><br><br><br>
-                </div>
-
-                <div class="date-container-row">
-                    <span class="date-label">Fecha:</span>
-                    <span class="date-value" id="view-fecha"></span>
-                </div>
-
-                <div class="full-width-report">
-                    <div class="report-header-line">
-                        <span class="report-title">Informe del trabajo:</span>
-                        <span class="materials-fixed-text">Lista de Materiales: Si <span class="square-span">&#9633;</span> No <span class="square-span">&#9633;</span></span>
-                    </div>
-                    <div class="report-box" id="view-informe"></div>
-                </div>
-
-                <div class="signatures-container">
-                    <div class="signature-row-top">
-                        <div class="signature-block">
-                            <div class="line-dots">---------------------------------------</div>
-                            <div>JEFE DEL DEPARTAMENTO</div>
+                <div id="contenedor-equipos">
+                    <div class="equipo-block" id="equipo-1">
+                        <h3>Equipo N° 1</h3>
+                        <div class="form-group"><label>Nombre del Equipo:</label><input type="text" class="in-eq-nombre" id="in-nombre-1"></div>
+                        <div class="form-group"><label>Marca:</label><input type="text" class="in-eq-marca" id="in-marca-1"></div>
+                        <div class="form-group"><label>Modelo:</label><input type="text" class="in-eq-modelo" id="in-modelo-1"></div>
+                        <div class="form-group"><label>Serie:</label><input type="text" class="in-eq-serie" id="in-serie-1"></div>
+                        <div class="form-group">
+                            <label>Año de Adquisición (1950 - 2026):</label>
+                            <input type="text" class="in-eq-anio" id="in-anio-1" placeholder="Ej. 2019" maxlength="4">
                         </div>
-                        <div class="signature-block">
-                            <div class="line-dots">---------------------------------------</div>
-                            <div>JEFE DEL TALLER</div>
+                    </div>
+
+                    <div class="equipo-block" id="equipo-2" style="display: none;">
+                        <h3>Equipo N° 2</h3>
+                        <div class="form-group"><label>Nombre del Equipo:</label><input type="text" class="in-eq-nombre" id="in-nombre-2"></div>
+                        <div class="form-group"><label>Marca:</label><input type="text" class="in-eq-marca" id="in-marca-2"></div>
+                        <div class="form-group"><label>Modelo:</label><input type="text" class="in-eq-modelo" id="in-modelo-2"></div>
+                        <div class="form-group"><label>Serie:</label><input type="text" class="in-eq-serie" id="in-serie-2"></div>
+                        <div class="form-group">
+                            <label>Año de Adquisición (1950 - 2026):</label>
+                            <input type="text" class="in-eq-anio" id="in-anio-2" placeholder="Ej. 2019" maxlength="4">
+                        </div>
+                        <button type="button" class="btn-sm btn-remove" onclick="quitarEquipo2()">Quitar Equipo N° 2</button>
+                    </div>
+
+                    <button type="button" class="btn-sm btn-add" id="btn-agregar-equipo" onclick="agregarEquipo2()">
+                        + Agregar otro equipo (máx. 2)
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label for="in-informe">Informe del Trabajo:</label>
+                    <textarea id="in-informe" placeholder="Escriba aquí los detalles del informe técnico efectuado..."></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-green" onclick="guardarOrden()">Guardar Orden</button>
+                    <button class="btn btn-blue" onclick="cancelarEdicion()" id="btn-cancelar" style="display:none;">Cancelar Edición</button>
+                </div>
+            </div>
+
+            <div class="panel panel-right">
+                <h2>Historial de Órdenes Registradas</h2>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>N° Orden</th>
+                            <th>Fecha</th>
+                            <th>Solicitante</th>
+                            <th>Generado por</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-ordenes">
+                        <tr><td colspan="5" style="text-align:center; color:#888;">Cargando órdenes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- VISOR PDF -->
+        <div id="pdf-viewer-container" class="pdf-viewer-modal">
+            <div class="pdf-viewer-toolbar">
+                <button class="close-viewer" onclick="cerrarVisorPDF()">❌ Cerrar Vista Previa</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-blue" onclick="window.print()" style="padding: 10px 25px;">Imprimir Orden de Trabajo 🖨️</button>
+                </div>
+            </div>
+
+            <div class="pdf-wrapper" id="area-imprimible-pdf">
+                <div class="print-page">
+                    <div class="header-layout">
+                        <div class="header-left">
+                            <img id="view-logo" src="img/logo.png" alt="[Escudo]">
+                            <div class="hospital-tag">Hospital Nacional PNP<br>"Luis N. Saenz"</div>
+                        </div>
+                        <div class="header-text-line-2-container">
+                            <div class="coordinar-box">
+                                <span class="coordinar-title">CORDINAR CON:</span>
+                                <span class="coordinar-body" id="view-linea-grado-nombre"></span>
+                                <span class="coordinar-body" id="view-linea-celular"></span>
+                            </div>
+                        </div>
+                        <div class="header-center-right">
+                            <div class="header-text-line-1">Oficina de Administracion</div>
+                            <div class="header-text-line-sub">Seccion de Servicios Generales</div>
                         </div>
                     </div>
-                    <div class="signature-row-bottom">
-                        <div class="signature-block">
-                            <div class="line-dots">---------------------------------------</div>
-                            <div>Locador SSGG</div>
+
+                    <div class="main-title-block">
+                        <div class="title-center">Orden de Trabajo</div>
+                        <div class="number-right">N°<span id="view-correlativo"></span></div>
+                    </div>
+
+                    <div class="info-field-row">
+                        <span class="info-field-label">Quién solicita :</span>
+                        <span class="info-field-value-dots" id="view-solicitante"></span>
+                    </div>
+
+                    <div class="info-field-row">
+                        <span class="info-field-label">Trabajo por efectuar:</span>
+                        <span class="info-field-value-dots" id="view-trabajo"></span>
+                    </div>
+
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Nombre</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>Serie</th>
+                                    <th>Año de Adq.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="view-tabla-equipos"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="stamp-space">
+                        <br><br><br><br><br><br>
+                    </div>
+
+                    <div class="date-container-row">
+                        <span class="date-label">Fecha:</span>
+                        <span class="date-value" id="view-fecha"></span>
+                    </div>
+
+                    <div class="full-width-report">
+                        <div class="report-header-line">
+                            <span class="report-title">Informe del trabajo:</span>
+                            <span class="materials-fixed-text">Lista de Materiales: Si <span class="square-span">&#9633;</span> No <span class="square-span">&#9633;</span></span>
+                        </div>
+                        <div class="report-box" id="view-informe"></div>
+                    </div>
+
+                    <div class="signatures-container">
+                        <div class="signature-row-top">
+                            <div class="signature-block">
+                                <div class="line-dots">---------------------------------------</div>
+                                <div>JEFE DEL DEPARTAMENTO</div>
+                            </div>
+                            <div class="signature-block">
+                                <div class="line-dots">---------------------------------------</div>
+                                <div>JEFE DEL TALLER</div>
+                            </div>
+                        </div>
+                        <div class="signature-row-bottom">
+                            <div class="signature-block">
+                                <div class="line-dots">---------------------------------------</div>
+                                <div>Locador SSGG</div>
+                            </div>
                         </div>
                     </div>
+
+                    <div class="watermark" id="view-watermark"></div>
                 </div>
             </div>
         </div>
+
     </div>
 
     <script>
-        let ordenes = JSON.parse(localStorage.getItem('ordenes_db')) || [];
+        // ============================================================
+        // CONFIGURACIÓN SUPABASE (ya con tus credenciales reales)
+        // ============================================================
+        const SUPABASE_URL = 'https://frdceddikeulmyytpnni.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZyZGNlZGRpa2V1bG15eXRwbm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMTM4NTQsImV4cCI6MjEwNTU4OTg1NH0.6rFzHlpLLpYY1uOfn768Sm9k8AB2PClp8QfTeE-_y5M';
+
+        const { createClient } = supabase;
+        const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ============================================================
+        // VARIABLES GLOBALES
+        // ============================================================
+        let ordenes = [];
+        let usuarioLogueado = null;
+        let usuarioTemporal = null;
         const anioActual = 2026;
 
         const getEl = (id) => document.getElementById(id);
@@ -704,124 +851,216 @@
             return texto.toLowerCase().split('').map(l => mapa[l] || l.toUpperCase()).join('');
         };
 
-        // ---------- NUEVO: manejo del select "Quién solicita" ----------
-        function alCambiarSolicitanteSelect() {
-            const select = getEl('in-solicitante-select');
-            const input = getEl('in-solicitante');
-            if (select.value === '') {
-                // No hacer nada si es la opción vacía
+        // ============================================================
+        // LOGIN PASO 1: DNI
+        // ============================================================
+        async function verificarDni() {
+            const dni = val('login-dni');
+            const err = getEl('err-1');
+            err.style.display = 'none';
+
+            if (!/^\d{8}$/.test(dni)) {
+                err.textContent = '⚠️ El DNI debe tener exactamente 8 dígitos.';
+                err.style.display = 'block';
                 return;
             }
-            if (select.value === 'OTROS') {
-                // Limpiar el input para que el usuario escriba
-                input.value = '';
-                input.focus();
-                input.placeholder = 'Escriba aquí el área solicitante...';
-            } else {
-                input.value = select.value;
-                input.placeholder = 'Puede editar este texto...';
-            }
-        }
 
-        // Restaura el select y el input a partir de un valor guardado
-        function restaurarSolicitante(valorGuardado) {
-            const select = getEl('in-solicitante-select');
-            const input = getEl('in-solicitante');
-            const valor = valorGuardado || '';
+            try {
+                const { data, error } = await sb
+                    .from('usuarios')
+                    .select('*')
+                    .eq('dni', dni)
+                    .eq('activo', true)
+                    .maybeSingle();
 
-            // Buscar si coincide exactamente con una opción (excepto OTROS)
-            let encontrado = false;
-            for (let i = 0; i < select.options.length; i++) {
-                const opt = select.options[i];
-                if (opt.value === valor && opt.value !== '' && opt.value !== 'OTROS') {
-                    select.value = opt.value;
-                    encontrado = true;
-                    break;
+                if (error) throw error;
+                if (!data) {
+                    err.textContent = '❌ DNI no encontrado o usuario inactivo.';
+                    err.style.display = 'block';
+                    return;
                 }
-            }
-            if (encontrado) {
-                input.value = valor;
-                input.placeholder = 'Puede editar este texto...';
-            } else {
-                // Si no coincide, seleccionar OTROS y poner el valor en el input
-                select.value = valor ? 'OTROS' : '';
-                input.value = valor;
-                input.placeholder = valor ? 'Puede editar este texto...' : 'Escriba o edite el área solicitante...';
-            }
-        }
 
-        // ---------------------------------------------------------
+                usuarioTemporal = data;
 
-        function activarMayusculas() {
-            document.querySelectorAll('#panel-formulario input[type="text"], #panel-formulario textarea').forEach(el => {
-                el.addEventListener('input', function() {
-                    const start = this.selectionStart;
-                    const end = this.selectionEnd;
-                    this.value = toUpper(this.value);
-                    this.setSelectionRange(start, end);
+                // 3 opciones de nombre
+                const distractoresNombre = generarNombresDistractores(data.nombre_completo);
+                const opcionesNombre = mezclar([data.nombre_completo, ...distractoresNombre]);
+                const selNombre = getEl('login-nombre-select');
+                selNombre.innerHTML = '<option value="">-- Seleccione --</option>';
+                opcionesNombre.forEach(n => {
+                    const opt = document.createElement('option');
+                    opt.value = n; opt.textContent = n;
+                    selNombre.appendChild(opt);
                 });
-            });
-        }
 
-        function soloDigitos(id) {
-            getEl(id).addEventListener('input', function() { this.value = this.value.replace(/[^0-9]/g, ''); });
-        }
-
-        function agregarEquipo2() {
-            getEl('equipo-2').style.display = 'block';
-            getEl('btn-agregar-equipo').style.display = 'none';
-        }
-
-        function quitarEquipo2() {
-            getEl('equipo-2').style.display = 'none';
-            getEl('btn-agregar-equipo').style.display = 'inline-block';
-            ['nombre','marca','modelo','serie','anio'].forEach(c => setVal(`in-${c}-2`, ''));
-        }
-
-        function obtenerEquiposDelFormulario() {
-            const equipos = [];
-            for (let i = 1; i <= 2; i++) {
-                const bloque = getEl(`equipo-${i}`);
-                if (!bloque || bloque.style.display === 'none') continue;
-                const nombre = val(`in-nombre-${i}`);
-                if (!nombre) continue;
-                equipos.push({
-                    nombre: toUpper(nombre),
-                    marca: toUpper(val(`in-marca-${i}`)),
-                    modelo: toUpper(val(`in-modelo-${i}`)),
-                    serie: toUpper(val(`in-serie-${i}`)),
-                    anio: val(`in-anio-${i}`)
+                // 3 opciones de fecha
+                const distractoresFecha = generarFechasDistractoras(data.fecha_nacimiento);
+                const opcionesFecha = mezclar([data.fecha_nacimiento, ...distractoresFecha]);
+                const selFecha = getEl('login-fecha-select');
+                selFecha.innerHTML = '<option value="">-- Seleccione --</option>';
+                opcionesFecha.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f; opt.textContent = formatearFecha(f);
+                    selFecha.appendChild(opt);
                 });
-            }
-            return equipos;
-        }
 
-        function cargarEquiposEnFormulario(equipos) {
-            getEl('equipo-2').style.display = 'none';
-            getEl('btn-agregar-equipo').style.display = 'inline-block';
-            if (!equipos || equipos.length === 0) return;
-
-            const eq1 = equipos[0];
-            setVal('in-nombre-1', eq1.nombre||'');
-            setVal('in-marca-1', eq1.marca||'');
-            setVal('in-modelo-1', eq1.modelo||'');
-            setVal('in-serie-1', eq1.serie||'');
-            setVal('in-anio-1', eq1.anio||'');
-
-            if (equipos.length > 1) {
-                agregarEquipo2();
-                const eq2 = equipos[1];
-                setVal('in-nombre-2', eq2.nombre||'');
-                setVal('in-marca-2', eq2.marca||'');
-                setVal('in-modelo-2', eq2.modelo||'');
-                setVal('in-serie-2', eq2.serie||'');
-                setVal('in-anio-2', eq2.anio||'');
+                irAPaso(2);
+            } catch (e) {
+                console.error(e);
+                err.textContent = '⚠️ Error de conexión: ' + (e.message || 'Verifique su conexión a Supabase.');
+                err.style.display = 'block';
             }
         }
 
-        function validarAnio(valor) {
-            const anio = parseInt(valor);
-            return !isNaN(anio) && anio >= 1950 && anio <= 2026;
+        // ============================================================
+        // LOGIN PASO 2: NOMBRE
+        // ============================================================
+        function verificarNombre() {
+            const elegido = getEl('login-nombre-select').value;
+            const err = getEl('err-2');
+            err.style.display = 'none';
+
+            if (!elegido) {
+                err.textContent = '⚠️ Debe seleccionar un nombre.';
+                err.style.display = 'block'; return;
+            }
+            if (elegido !== usuarioTemporal.nombre_completo) {
+                err.textContent = '❌ Nombre incorrecto. Verifique e intente nuevamente.';
+                err.style.display = 'block'; return;
+            }
+            irAPaso(3);
+        }
+
+        // ============================================================
+        // LOGIN PASO 3: FECHA
+        // ============================================================
+        function verificarFecha() {
+            const elegida = getEl('login-fecha-select').value;
+            const err = getEl('err-3');
+            err.style.display = 'none';
+
+            if (!elegida) {
+                err.textContent = '⚠️ Debe seleccionar una fecha.';
+                err.style.display = 'block'; return;
+            }
+            if (elegida !== usuarioTemporal.fecha_nacimiento) {
+                err.textContent = '❌ Fecha de nacimiento incorrecta. Acceso denegado.';
+                err.style.display = 'block'; return;
+            }
+
+            usuarioLogueado = usuarioTemporal;
+            iniciarApp();
+        }
+
+        // ============================================================
+        // HELPERS LOGIN
+        // ============================================================
+        function irAPaso(n) {
+            document.querySelectorAll('.login-step').forEach(s => s.classList.remove('active'));
+            getEl('step-' + n).classList.add('active');
+            for (let i = 1; i <= 3; i++) {
+                const p = getEl('prog-' + i);
+                p.classList.remove('active', 'done');
+                if (i < n) p.classList.add('done');
+                else if (i === n) p.classList.add('active');
+            }
+        }
+        function mezclar(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+        function generarNombresDistractores(nombreReal) {
+            const apellidos = ['GARCIA','RODRIGUEZ','FERNANDEZ','TORRES','RAMIREZ','CASTILLO','VARGAS','MENDOZA','HUAMAN','QUISPE'];
+            const nombres = ['CARLOS','LUIS','MIGUEL','JORGE','PEDRO','JUAN','MARIA','ANA','LUCIA','ROSA'];
+            const set = new Set();
+            while (set.size < 2) {
+                const n = nombres[Math.floor(Math.random()*nombres.length)];
+                const a1 = apellidos[Math.floor(Math.random()*apellidos.length)];
+                const a2 = apellidos[Math.floor(Math.random()*apellidos.length)];
+                const falso = `${n} ${a1} ${a2}`;
+                if (falso !== nombreReal) set.add(falso);
+            }
+            return [...set];
+        }
+        function generarFechasDistractoras(fechaReal) {
+            const [y, m, d] = fechaReal.split('-').map(Number);
+            const set = new Set();
+            while (set.size < 2) {
+                let ny = y, nm = m, nd = d;
+                const tipo = Math.floor(Math.random() * 2);
+                if (tipo === 0) { nm = d; nd = m; }
+                else { ny = y + (Math.floor(Math.random() * 10) - 5); }
+                if (nm < 1 || nm > 12) nm = ((nm - 1 + 12) % 12) + 1;
+                if (nd < 1 || nd > 28) nd = ((nd - 1 + 28) % 28) + 1;
+                if (ny < 1950 || ny > 2020) ny = y + 1;
+                const f = `${ny}-${String(nm).padStart(2,'0')}-${String(nd).padStart(2,'0')}`;
+                if (f !== fechaReal) set.add(f);
+            }
+            return [...set];
+        }
+        function formatearFecha(iso) {
+            if (!iso) return '';
+            const [y, m, d] = iso.split('-');
+            return `${d}/${m}/${y}`;
+        }
+
+        // ============================================================
+        // INICIO APP
+        // ============================================================
+        async function iniciarApp() {
+            getEl('login-overlay').style.display = 'none';
+            getEl('app-principal').classList.remove('app-hidden');
+
+            getEl('user-welcome').textContent = usuarioLogueado.nombre_completo;
+            getEl('user-dni').textContent = usuarioLogueado.dni;
+            getEl('user-cel').textContent = usuarioLogueado.celular;
+
+            if (usuarioLogueado.grado) setVal('in-grado', usuarioLogueado.grado);
+            setVal('in-encargado-nombre', usuarioLogueado.nombre_completo);
+            setVal('in-telefono', usuarioLogueado.celular);
+
+            await cargarOrdenes();
+            configurarModoNumero();
+            activarMayusculas();
+            soloDigitos('in-anio-1');
+            soloDigitos('in-anio-2');
+            soloDigitos('in-telefono');
+            getEl('chk-auto').addEventListener('change', configurarModoNumero);
+        }
+
+        function cerrarSesion() {
+            if (!confirm('¿Desea cerrar sesión?')) return;
+            usuarioLogueado = null;
+            usuarioTemporal = null;
+            ordenes = [];
+            getEl('login-overlay').style.display = 'flex';
+            getEl('app-principal').classList.add('app-hidden');
+            irAPaso(1);
+            setVal('login-dni', '');
+            getEl('login-nombre-select').innerHTML = '<option value="">-- Seleccione --</option>';
+            getEl('login-fecha-select').innerHTML = '<option value="">-- Seleccione --</option>';
+        }
+
+        // ============================================================
+        // ÓRDENES CON SUPABASE
+        // ============================================================
+        async function cargarOrdenes() {
+            try {
+                const { data, error } = await sb
+                    .from('ordenes_trabajo')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                if (error) throw error;
+                ordenes = data || [];
+                actualizarTablaHistorial();
+            } catch (e) {
+                console.error(e);
+                alert('Error al cargar órdenes: ' + e.message);
+            }
         }
 
         function generarProximoNumero() {
@@ -829,7 +1068,6 @@
             const max = Math.max(...ordenes.map(o => parseInt(o.correlativo) || 0));
             return String(max + 1).padStart(4, '0');
         }
-
         function configurarModoNumero() {
             const chkAuto = getEl('chk-auto');
             const inputCorr = getEl('in-correlativo');
@@ -842,7 +1080,106 @@
             }
         }
 
-        function guardarOrden() {
+        function alCambiarSolicitanteSelect() {
+            const select = getEl('in-solicitante-select');
+            const input = getEl('in-solicitante');
+            if (select.value === '') return;
+            if (select.value === 'OTROS') {
+                input.value = '';
+                input.focus();
+                input.placeholder = 'Escriba aquí el área solicitante...';
+            } else {
+                input.value = select.value;
+                input.placeholder = 'Puede editar este texto...';
+            }
+        }
+        function restaurarSolicitante(valorGuardado) {
+            const select = getEl('in-solicitante-select');
+            const input = getEl('in-solicitante');
+            const valor = valorGuardado || '';
+            let ok = false;
+            for (let i = 0; i < select.options.length; i++) {
+                const opt = select.options[i];
+                if (opt.value === valor && opt.value !== '' && opt.value !== 'OTROS') {
+                    select.value = opt.value; ok = true; break;
+                }
+            }
+            if (ok) { input.value = valor; }
+            else { select.value = valor ? 'OTROS' : ''; input.value = valor; }
+        }
+
+        function activarMayusculas() {
+            document.querySelectorAll('#panel-formulario input[type="text"], #panel-formulario textarea').forEach(el => {
+                el.addEventListener('input', function() {
+                    const s = this.selectionStart, e = this.selectionEnd;
+                    this.value = toUpper(this.value);
+                    this.setSelectionRange(s, e);
+                });
+            });
+        }
+        function soloDigitos(id) {
+            const el = getEl(id);
+            if (!el) return;
+            el.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+        }
+
+        function agregarEquipo2() {
+            getEl('equipo-2').style.display = 'block';
+            getEl('btn-agregar-equipo').style.display = 'none';
+        }
+        function quitarEquipo2() {
+            getEl('equipo-2').style.display = 'none';
+            getEl('btn-agregar-equipo').style.display = 'inline-block';
+            ['nombre','marca','modelo','serie','anio'].forEach(c => setVal(`in-${c}-2`, ''));
+        }
+        function obtenerEquiposDelFormulario() {
+            const eqs = [];
+            for (let i = 1; i <= 2; i++) {
+                const bloque = getEl(`equipo-${i}`);
+                if (!bloque || bloque.style.display === 'none') continue;
+                const nombre = val(`in-nombre-${i}`);
+                if (!nombre) continue;
+                eqs.push({
+                    nombre: toUpper(nombre),
+                    marca: toUpper(val(`in-marca-${i}`)),
+                    modelo: toUpper(val(`in-modelo-${i}`)),
+                    serie: toUpper(val(`in-serie-${i}`)),
+                    anio: val(`in-anio-${i}`)
+                });
+            }
+            return eqs;
+        }
+        function cargarEquiposEnFormulario(equipos) {
+            getEl('equipo-2').style.display = 'none';
+            getEl('btn-agregar-equipo').style.display = 'inline-block';
+            if (!equipos || !equipos.length) return;
+            const eq1 = equipos[0];
+            setVal('in-nombre-1', eq1.nombre||'');
+            setVal('in-marca-1', eq1.marca||'');
+            setVal('in-modelo-1', eq1.modelo||'');
+            setVal('in-serie-1', eq1.serie||'');
+            setVal('in-anio-1', eq1.anio||'');
+            if (equipos.length > 1) {
+                agregarEquipo2();
+                const eq2 = equipos[1];
+                setVal('in-nombre-2', eq2.nombre||'');
+                setVal('in-marca-2', eq2.marca||'');
+                setVal('in-modelo-2', eq2.modelo||'');
+                setVal('in-serie-2', eq2.serie||'');
+                setVal('in-anio-2', eq2.anio||'');
+            }
+        }
+        function validarAnio(v) {
+            const a = parseInt(v);
+            return !isNaN(a) && a >= 1950 && a <= 2026;
+        }
+
+        // ============================================================
+        // GUARDAR ORDEN EN SUPABASE
+        // ============================================================
+        async function guardarOrden() {
             const grado = val('in-grado');
             if (!grado) return alert("ERROR: Debe seleccionar un Grado / Tratamiento.");
 
@@ -854,7 +1191,7 @@
             if (equipos.length === 0) return alert("ERROR: Debe registrar al menos el Nombre del Equipo N° 1.");
             for (let i = 0; i < equipos.length; i++) {
                 if (!equipos[i].anio || !validarAnio(equipos[i].anio)) {
-                    return alert(`ERROR: El año de adquisición del Equipo N° ${i+1} debe estar entre 1950 y 2026.`);
+                    return alert(`ERROR: El año del Equipo N° ${i+1} debe estar entre 1950 y 2026.`);
                 }
             }
 
@@ -862,60 +1199,65 @@
             const correlativo = val('in-correlativo');
             if (!correlativo) return alert("Por favor, introduce o genera un número de orden.");
 
-            const hoy = new Date();
-            const fecha = `${hoy.getDate()}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
-
-            const datosOrden = {
-                id: idEdicion ? parseInt(idEdicion) : Date.now(),
+            const datos = {
                 correlativo: toUpper(correlativo),
                 grado,
-                encargadoNombre: toUpper(val('in-encargado-nombre')),
+                encargado_nombre: toUpper(val('in-encargado-nombre')),
                 telefono: celular,
                 solicitante: toUpper(val('in-solicitante')),
                 trabajo: toUpper(val('in-trabajo')),
-                equipos,
+                equipos: equipos,
                 informe: toUpper(val('in-informe')),
-                fecha
+                fecha_emision: new Date().toISOString().slice(0,10),
+                usuario_id: usuarioLogueado.id,
+                usuario_dni: usuarioLogueado.dni,
+                usuario_nombre: usuarioLogueado.nombre_completo
             };
 
-            if (idEdicion) {
-                const index = ordenes.findIndex(o => o.id === parseInt(idEdicion));
-                if (index !== -1) ordenes[index] = datosOrden;
-                alert("¡Orden modificada con éxito!");
-            } else {
-                if (ordenes.some(o => o.correlativo === datosOrden.correlativo)) {
-                    return alert("El número de orden ya existe. Use uno diferente.");
-                }
-                ordenes.push(datosOrden);
-                alert("¡Nueva orden registrada!");
-            }
+            try {
+                if (idEdicion) {
+                    const { error } = await sb.from('ordenes_trabajo').update(datos).eq('id', idEdicion);
+                    if (error) throw error;
+                    alert("¡Orden modificada con éxito!");
+                } else {
+                    const { data: exist } = await sb.from('ordenes_trabajo')
+                        .select('id').eq('correlativo', datos.correlativo).maybeSingle();
+                    if (exist) return alert("El número de orden ya existe. Use uno diferente.");
 
-            localStorage.setItem('ordenes_db', JSON.stringify(ordenes));
-            limpiarFormulario();
-            actualizarTablaHistorial();
+                    const { error } = await sb.from('ordenes_trabajo').insert([datos]);
+                    if (error) throw error;
+                    alert("¡Nueva orden registrada!");
+                }
+                await cargarOrdenes();
+                limpiarFormulario();
+            } catch (e) {
+                console.error(e);
+                alert('Error al guardar: ' + (e.message || 'Desconocido'));
+            }
         }
 
+        // ============================================================
+        // HISTORIAL
+        // ============================================================
         function actualizarTablaHistorial() {
             const tbody = getEl('lista-ordenes');
             tbody.innerHTML = '';
             if (!ordenes.length) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No hay órdenes en el historial.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No hay órdenes registradas.</td></tr>`;
                 return;
             }
-            [...ordenes].reverse().forEach(o => {
-                const primerEquipo = o.equipos?.[0]?.nombre || 'Sin equipo';
-                const extra = o.equipos?.length > 1 ? ' +1' : '';
+            ordenes.forEach(o => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${o.correlativo}-${anioActual}</strong></td>
-                    <td>${o.fecha}</td>
-                    <td>${o.solicitante.substring(0, 20)}...</td>
-                    <td>${primerEquipo}${extra}</td>
+                    <td>${o.fecha_emision || ''}</td>
+                    <td>${(o.solicitante || '').substring(0, 22)}...</td>
+                    <td style="font-size:0.85em;">${o.usuario_nombre || 'N/D'}</td>
                     <td class="action-btns">
-                        <button class="btn-action btn-blue" onclick="verOrden(${o.id})">Ver</button>
-                        <button class="btn-action btn-orange" onclick="cargarParaEditar(${o.id})">Editar</button>
-                        <button class="btn-action btn-purple" onclick="copiarOrden(${o.id})">Copiar</button>
-                        <button class="btn-action btn-red" onclick="eliminarOrden(${o.id})">X</button>
+                        <button class="btn-action btn-blue" onclick="verOrden('${o.id}')">Ver</button>
+                        <button class="btn-action btn-orange" onclick="cargarParaEditar('${o.id}')">Editar</button>
+                        <button class="btn-action btn-purple" onclick="copiarOrden('${o.id}')">Copiar</button>
+                        <button class="btn-action btn-red" onclick="eliminarOrden('${o.id}')">X</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -923,144 +1265,129 @@
         }
 
         function verOrden(id) {
-            const orden = ordenes.find(o => o.id === id);
-            if (!orden) return;
+            const o = ordenes.find(x => x.id === id);
+            if (!o) return;
+            getEl('view-correlativo').innerText = `${o.correlativo}-${anioActual}`;
+            getEl('view-linea-grado-nombre').innerText = `${o.grado || ''} - ${o.encargado_nombre || ''}`;
+            getEl('view-linea-celular').innerText = `CEL: ${o.telefono || ''}`;
+            getEl('view-solicitante').innerText = o.solicitante;
+            getEl('view-trabajo').innerText = o.trabajo;
+            getEl('view-fecha').innerText = formatearFecha(o.fecha_emision);
+            getEl('view-informe').innerText = o.informe;
 
-            getEl('view-correlativo').innerText = `${orden.correlativo}-${anioActual}`;
-            getEl('view-linea-grado-nombre').innerText = `${orden.grado || ''} - ${orden.encargadoNombre || ''}`;
-            getEl('view-linea-celular').innerText = `CEL: ${orden.telefono || ''}`;
-            getEl('view-solicitante').innerText = orden.solicitante;
-            getEl('view-trabajo').innerText = orden.trabajo;
-            getEl('view-fecha').innerText = orden.fecha;
-            getEl('view-informe').innerText = orden.informe;
+            const ahora = new Date();
+            const fs = ahora.toLocaleDateString('es-PE');
+            const hs = ahora.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+            getEl('view-watermark').innerHTML =
+                `Orden de Trabajo generada por:<br>` +
+                `<strong>${o.usuario_nombre || 'N/D'}</strong><br>` +
+                `${fs} ${hs}`;
 
-            const tbodyEquipos = getEl('view-tabla-equipos');
-            tbodyEquipos.innerHTML = '';
-            if (orden.equipos && orden.equipos.length) {
-                orden.equipos.forEach((eq, idx) => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${idx + 1}</td>
-                        <td>${eq.nombre || ''}</td>
-                        <td>${eq.marca || ''}</td>
-                        <td>${eq.modelo || ''}</td>
-                        <td>${eq.serie || ''}</td>
-                        <td>${eq.anio || ''}</td>
-                    `;
-                    tbodyEquipos.appendChild(tr);
-                });
-            }
+            const tbody = getEl('view-tabla-equipos');
+            tbody.innerHTML = '';
+            (o.equipos || []).forEach((eq, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${i+1}</td>
+                    <td>${eq.nombre||''}</td>
+                    <td>${eq.marca||''}</td>
+                    <td>${eq.modelo||''}</td>
+                    <td>${eq.serie||''}</td>
+                    <td>${eq.anio||''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
 
             getEl('pdf-viewer-container').style.display = 'block';
             getEl('pdf-viewer-container').scrollTop = 0;
             document.body.style.overflow = 'hidden';
         }
-
         function cerrarVisorPDF() {
             getEl('pdf-viewer-container').style.display = 'none';
             document.body.style.overflow = 'auto';
         }
 
-        // ---------- NUEVA FUNCIÓN: cargar para editar (mejorada) ----------
         function cargarParaEditar(id) {
-            const orden = ordenes.find(o => o.id === id);
-            if (!orden) return;
-
-            // Cerrar visor PDF si estuviera abierto
+            const o = ordenes.find(x => x.id === id);
+            if (!o) return;
             cerrarVisorPDF();
-
             getEl('form-title').innerText = "Modificar Orden de Trabajo";
-            setVal('in-id-edicion', orden.id);
+            setVal('in-id-edicion', o.id);
             getEl('chk-auto').checked = false;
             getEl('in-correlativo').disabled = false;
-            setVal('in-correlativo', orden.correlativo);
-            setVal('in-grado', orden.grado||'');
-            setVal('in-encargado-nombre', orden.encargadoNombre||'');
-            setVal('in-telefono', orden.telefono||'');
-            restaurarSolicitante(orden.solicitante || '');
-            setVal('in-trabajo', orden.trabajo);
-            setVal('in-informe', orden.informe);
-            cargarEquiposEnFormulario(orden.equipos || []);
+            setVal('in-correlativo', o.correlativo);
+            setVal('in-grado', o.grado||'');
+            setVal('in-encargado-nombre', o.encargado_nombre||'');
+            setVal('in-telefono', o.telefono||'');
+            restaurarSolicitante(o.solicitante || '');
+            setVal('in-trabajo', o.trabajo);
+            setVal('in-informe', o.informe);
+            cargarEquiposEnFormulario(o.equipos || []);
             getEl('btn-cancelar').style.display = 'block';
-
-            // Resaltar panel y hacer scroll suave
             const panel = getEl('panel-formulario');
             panel.classList.add('editando');
             setTimeout(() => panel.classList.remove('editando'), 2000);
-
             panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        // ---------- NUEVA FUNCIÓN: copiar orden ----------
         function copiarOrden(id) {
-            const orden = ordenes.find(o => o.id === id);
-            if (!orden) return;
-
-            // Cerrar visor PDF si estuviera abierto
+            const o = ordenes.find(x => x.id === id);
+            if (!o) return;
             cerrarVisorPDF();
-
-            // Cargar datos en el formulario como NUEVA orden (sin id de edición)
             getEl('form-title').innerText = "Nueva Orden de Trabajo (copia)";
-            setVal('in-id-edicion', '');                  // Importante: no es edición
-            setVal('in-grado', orden.grado || '');
-            setVal('in-encargado-nombre', orden.encargadoNombre || '');
-            setVal('in-telefono', orden.telefono || '');
-            restaurarSolicitante(orden.solicitante || '');
-            setVal('in-trabajo', orden.trabajo || '');
-            setVal('in-informe', orden.informe || '');
-            cargarEquiposEnFormulario(orden.equipos || []);
+            setVal('in-id-edicion', '');
+            setVal('in-grado', o.grado || '');
+            setVal('in-encargado-nombre', o.encargado_nombre || '');
+            setVal('in-telefono', o.telefono || '');
+            restaurarSolicitante(o.solicitante || '');
+            setVal('in-trabajo', o.trabajo || '');
+            setVal('in-informe', o.informe || '');
+            cargarEquiposEnFormulario(o.equipos || []);
 
-            // Configurar el número de orden: preguntar si desea cambiarlo
-            const numeroOriginal = orden.correlativo || '';
-            const nuevoNumero = prompt(
-                `Copia de la orden N° ${numeroOriginal}-${anioActual}.\n\n` +
-                `¿Desea cambiar el número de orden de trabajo?\n` +
-                `- Aceptar: escriba el nuevo número correlativo (ej. 0005)\n` +
-                `- Cancelar: se generará el siguiente número automático`,
+            const nuevo = prompt(
+                `Copia de la orden N° ${o.correlativo}-${anioActual}.\n\n` +
+                `¿Desea cambiar el número de orden?\n` +
+                `- Aceptar: escriba nuevo número (ej. 0005)\n` +
+                `- Cancelar: se generará el siguiente automático`,
                 ''
             );
 
-            if (nuevoNumero !== null) {
-                // El usuario aceptó; validar que no esté vacío y no duplicado
-                const num = nuevoNumero.trim();
+            if (nuevo !== null) {
+                const num = nuevo.trim();
                 if (num === '') {
-                    alert("No ingresó número. Se generará el siguiente automático.");
+                    getEl('chk-auto').checked = true;
+                    configurarModoNumero();
+                } else if (ordenes.some(x => x.correlativo === toUpper(num))) {
+                    alert("Ese número ya existe. Se generará el siguiente.");
                     getEl('chk-auto').checked = true;
                     configurarModoNumero();
                 } else {
-                    // Verificar duplicado
-                    if (ordenes.some(o => o.correlativo === toUpper(num) && o.id !== id)) {
-                        alert("Ese número de orden ya existe. Se generará el siguiente automático.");
-                        getEl('chk-auto').checked = true;
-                        configurarModoNumero();
-                    } else {
-                        getEl('chk-auto').checked = false;
-                        getEl('in-correlativo').disabled = false;
-                        setVal('in-correlativo', toUpper(num));
-                    }
+                    getEl('chk-auto').checked = false;
+                    getEl('in-correlativo').disabled = false;
+                    setVal('in-correlativo', toUpper(num));
                 }
             } else {
-                // Canceló: generar siguiente automático
                 getEl('chk-auto').checked = true;
                 configurarModoNumero();
             }
 
-            // Mostrar botón cancelar edición (para salir del modo copia)
             getEl('btn-cancelar').style.display = 'block';
-
-            // Resaltar panel y hacer scroll
             const panel = getEl('panel-formulario');
             panel.classList.add('editando');
             setTimeout(() => panel.classList.remove('editando'), 2000);
             panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        function eliminarOrden(id) {
-            if (confirm("¿Deseas eliminar permanentemente esta orden del historial?")) {
-                ordenes = ordenes.filter(o => o.id !== id);
-                localStorage.setItem('ordenes_db', JSON.stringify(ordenes));
+        async function eliminarOrden(id) {
+            if (!confirm("¿Deseas eliminar permanentemente esta orden?")) return;
+            try {
+                const { error } = await sb.from('ordenes_trabajo').delete().eq('id', id);
+                if (error) throw error;
+                await cargarOrdenes();
                 limpiarFormulario();
-                actualizarTablaHistorial();
+            } catch (e) {
+                console.error(e);
+                alert('Error al eliminar: ' + e.message);
             }
         }
 
@@ -1070,36 +1397,35 @@
             getEl('form-title').innerText = "Nueva Orden de Trabajo";
             setVal('in-id-edicion', '');
             getEl('chk-auto').checked = true;
-            setVal('in-grado', '');
-            setVal('in-encargado-nombre', '');
-            setVal('in-telefono', '');
-            // Limpiar select e input de solicitante
+            if (usuarioLogueado) {
+                setVal('in-grado', usuarioLogueado.grado || '');
+                setVal('in-encargado-nombre', usuarioLogueado.nombre_completo || '');
+                setVal('in-telefono', usuarioLogueado.celular || '');
+            } else {
+                setVal('in-grado', '');
+                setVal('in-encargado-nombre', '');
+                setVal('in-telefono', '');
+            }
             setVal('in-solicitante-select', '');
             setVal('in-solicitante', '');
             setVal('in-trabajo', '');
             setVal('in-informe', '');
-
-            setVal('in-nombre-1', '');
-            setVal('in-marca-1', '');
-            setVal('in-modelo-1', '');
-            setVal('in-serie-1', '');
-            setVal('in-anio-1', '');
+            setVal('in-nombre-1', ''); setVal('in-marca-1', ''); setVal('in-modelo-1', '');
+            setVal('in-serie-1', ''); setVal('in-anio-1', '');
             quitarEquipo2();
-
             getEl('btn-cancelar').style.display = 'none';
             cerrarVisorPDF();
             configurarModoNumero();
         }
 
+        // ============================================================
+        // INICIO
+        // ============================================================
         window.onload = function() {
-            configurarModoNumero();
-            actualizarTablaHistorial();
-            activarMayusculas();
-            getEl('view-logo').src = "img/logo.png";
-            getEl('chk-auto').addEventListener('change', configurarModoNumero);
-            soloDigitos('in-anio-1');
-            soloDigitos('in-anio-2');
-            soloDigitos('in-telefono');
+            soloDigitos('login-dni');
+            getEl('login-dni').addEventListener('keypress', e => {
+                if (e.key === 'Enter') verificarDni();
+            });
         };
     </script>
 </body>

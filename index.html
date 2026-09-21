@@ -15,6 +15,23 @@
             margin: 0;
             padding: 20px;
             color: #333;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        /* Permitir selección solo en los campos de entrada */
+        input, textarea, select {
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+            user-select: text !important;
+        }
+        img {
+            -webkit-user-drag: none;
+            user-drag: none;
+            pointer-events: none;
         }
 
         /* ===================== LOGIN ===================== */
@@ -37,7 +54,7 @@
             padding: 35px 30px;
         }
         .login-header { text-align: center; margin-bottom: 25px; }
-        .login-header img { max-width: 90px; margin-bottom: 10px; }
+        .login-header img { max-width: 90px; margin-bottom: 10px; pointer-events: auto; }
         .login-header h1 {
             font-size: 1.15em;
             color: #003366;
@@ -489,11 +506,72 @@
         }
         .line-dots { margin-bottom: 3px; letter-spacing: 0.5px; font-weight: normal; }
 
+        /* ===================== ALERTA DE SEGURIDAD ===================== */
+        .security-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 999999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(6px);
+        }
+        .security-overlay.active { display: flex; }
+        .security-card {
+            background: #fff;
+            border-radius: 12px;
+            max-width: 520px;
+            width: 100%;
+            padding: 35px 30px;
+            text-align: center;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+            border-top: 6px solid #dc3545;
+            animation: shake 0.5s ease;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .security-icon {
+            font-size: 3.5em;
+            margin-bottom: 10px;
+        }
+        .security-card h2 {
+            color: #dc3545;
+            font-size: 1.3em;
+            margin: 0 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .security-card p {
+            color: #444;
+            font-size: 0.95em;
+            line-height: 1.5;
+            margin: 8px 0;
+        }
+        .security-card .inst {
+            color: #003366;
+            font-weight: bold;
+            font-size: 1em;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .security-card .small {
+            color: #888;
+            font-size: 0.78em;
+            margin-top: 12px;
+        }
+
         @media print {
             body { background: none; padding: 0; margin: 0; }
             .workspace, .topbar,
             .pdf-viewer-toolbar,
-            .close-viewer { display: none !important; }
+            .close-viewer,
+            .security-overlay { display: none !important; }
             .pdf-viewer-modal {
                 position: absolute;
                 padding: 0;
@@ -507,7 +585,21 @@
         }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false" ondragstart="return false" onselectstart="return false">
+
+    <!-- ============================= ALERTA DE SEGURIDAD ============================= -->
+    <div class="security-overlay" id="security-overlay">
+        <div class="security-card">
+            <div class="security-icon">🛡️</div>
+            <h2>Página Protegida</h2>
+            <p>El acceso a herramientas de desarrollo, inspección de código o captura no está permitido en este sistema.</p>
+            <p class="inst">
+                PÁGINA PROTEGIDA POR LA<br>
+                UNITIC HN.PNP.LNS
+            </p>
+            <p class="small">Unidad de Tecnología de la Información y Comunicaciones<br>Hospital Nacional PNP "Luis N. Sáenz"</p>
+        </div>
+    </div>
 
     <!-- ============================= LOGIN ============================= -->
     <div class="login-overlay" id="login-overlay">
@@ -826,7 +918,150 @@
 
     <script>
         // ============================================================
-        // CONFIGURACIÓN SUPABASE (ya con tus credenciales reales)
+        // 🛡️ CAPA DE SEGURIDAD - UNITIC HN.PNP.LNS
+        // ============================================================
+        (function() {
+            // Mostrar alerta de seguridad
+            function mostrarAlertaSeguridad() {
+                const ov = document.getElementById('security-overlay');
+                if (!ov) return;
+                ov.classList.add('active');
+                // Ocultar después de 3 segundos
+                setTimeout(() => ov.classList.remove('active'), 3000);
+            }
+
+            // 1) Bloquear clic derecho
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                mostrarAlertaSeguridad();
+                return false;
+            });
+
+            // 2) Bloquear teclas: F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S, Ctrl+P
+            document.addEventListener('keydown', function(e) {
+                // F12
+                if (e.key === 'F12' || e.keyCode === 123) {
+                    e.preventDefault();
+                    mostrarAlertaSeguridad();
+                    return false;
+                }
+                // Ctrl+Shift+I / J / C
+                if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(e.key)) {
+                    e.preventDefault();
+                    mostrarAlertaSeguridad();
+                    return false;
+                }
+                // Ctrl+U (ver código fuente)
+                if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
+                    e.preventDefault();
+                    mostrarAlertaSeguridad();
+                    return false;
+                }
+                // Ctrl+S (guardar página)
+                if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+                    e.preventDefault();
+                    mostrarAlertaSeguridad();
+                    return false;
+                }
+                // Ctrl+P (imprimir) - permitimos solo desde el botón del sistema
+                // Descomenta si quieres bloquearlo también
+                /*
+                if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
+                    e.preventDefault();
+                    mostrarAlertaSeguridad();
+                    return false;
+                }
+                */
+                // PrintScreen (intento de captura)
+                if (e.key === 'PrintScreen' || e.keyCode === 44) {
+                    // No se puede bloquear la tecla del sistema, pero podemos intentar
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText('').catch(()=>{});
+                    }
+                    mostrarAlertaSeguridad();
+                }
+            });
+
+            // 3) Bloquear arrastrar imágenes y selección
+            document.addEventListener('dragstart', e => {
+                if (e.target.tagName === 'IMG') {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            document.addEventListener('selectstart', function(e) {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // 4) Detección de DevTools (por diferencia de tamaño de ventana)
+            let devtoolsAbierto = false;
+            const umbral = 160;
+            function chequearDevTools() {
+                const anchoDiff = window.outerWidth - window.innerWidth;
+                const altoDiff = window.outerHeight - window.innerHeight;
+                if (anchoDiff > umbral || altoDiff > umbral) {
+                    if (!devtoolsAbierto) {
+                        devtoolsAbierto = true;
+                        mostrarAlertaSeguridad();
+                    }
+                } else {
+                    devtoolsAbierto = false;
+                }
+            }
+            setInterval(chequearDevTools, 1200);
+
+            // 5) Trampa con debugger (dificulta el uso de DevTools)
+            setInterval(function() {
+                (function() {
+                    try {
+                        const t0 = performance.now();
+                        // Si alguien tiene DevTools abierto con breakpoints, se detendrá aquí
+                        (function() {
+                            return false;
+                        })["constructor"]("debugger")();
+                    } catch (e) {}
+                })();
+            }, 2000);
+
+            // 6) Detectar cambio de tamaño extremo (por si abren DevTools acoplado)
+            window.addEventListener('resize', function() {
+                const anchoDiff = window.outerWidth - window.innerWidth;
+                if (anchoDiff > umbral) {
+                    mostrarAlertaSeguridad();
+                }
+            });
+
+            // 7) Bloquear el atajo Ctrl+Shift+K (consola en Firefox)
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) {
+                    e.preventDefault();
+                    mostrarAlertaSeguridad();
+                    return false;
+                }
+            });
+
+            // 8) Prevenir que abran el menú al mantener pulsado en móvil
+            document.addEventListener('touchstart', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            let ultimoTouch = 0;
+            document.addEventListener('touchend', function(e) {
+                const ahora = new Date().getTime();
+                if (ahora - ultimoTouch <= 300) {
+                    e.preventDefault();
+                }
+                ultimoTouch = ahora;
+            }, false);
+        })();
+
+        // ============================================================
+        // CONFIGURACIÓN SUPABASE
         // ============================================================
         const SUPABASE_URL = 'https://frdceddikeulmyytpnni.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZyZGNlZGRpa2V1bG15eXRwbm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMTM4NTQsImV4cCI6MjEwNTU4OTg1NH0.6rFzHlpLLpYY1uOfn768Sm9k8AB2PClp8QfTeE-_y5M';
@@ -882,7 +1117,6 @@
 
                 usuarioTemporal = data;
 
-                // 3 opciones de nombre
                 const distractoresNombre = generarNombresDistractores(data.nombre_completo);
                 const opcionesNombre = mezclar([data.nombre_completo, ...distractoresNombre]);
                 const selNombre = getEl('login-nombre-select');
@@ -893,7 +1127,6 @@
                     selNombre.appendChild(opt);
                 });
 
-                // 3 opciones de fecha
                 const distractoresFecha = generarFechasDistractoras(data.fecha_nacimiento);
                 const opcionesFecha = mezclar([data.fecha_nacimiento, ...distractoresFecha]);
                 const selFecha = getEl('login-fecha-select');

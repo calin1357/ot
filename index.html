@@ -21,7 +21,6 @@
             user-select: none;
             -webkit-touch-callout: none;
         }
-        /* Permitir selección solo en los campos de entrada */
         input, textarea, select {
             -webkit-user-select: text !important;
             -moz-user-select: text !important;
@@ -200,6 +199,14 @@
             border-radius: 4px;
             font-size: 0.95em;
         }
+        /* Tamaño de letra reducido para los campos solicitados */
+        #in-solicitante,
+        #in-trabajo {
+            font-size: 0.85em !important;
+        }
+        #in-solicitante-select {
+            font-size: 0.85em !important;
+        }
         .form-group textarea { resize: vertical; height: 100px; }
         .row-inline { display: flex; gap: 10px; align-items: center; }
         .checkbox-group {
@@ -208,6 +215,28 @@
             gap: 5px;
             margin-top: 5px;
         }
+
+        /* Check "creadores del sistema" */
+        .creadores-check-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #856404;
+        }
+        .creadores-check-box input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .creadores-check-box label { cursor: pointer; margin: 0; color: #856404; }
+
         .equipo-block {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -329,6 +358,11 @@
             position: relative;
         }
         .print-page * { color: #000000 !important; }
+
+        /* Tamaño reducido para los campos solicitados en la hoja */
+        .print-page .info-field-value-dots {
+            font-size: 0.85em !important;
+        }
 
         .watermark {
             position: absolute;
@@ -582,6 +616,8 @@
             }
             .pdf-viewer-content { box-shadow: none; width: 100%; margin: 0; }
             .print-page { padding: 0; border: none; box-shadow: none; }
+            /* 🔴 OCULTAR LA MARCA DE AGUA AL IMPRIMIR */
+            .watermark { display: none !important; }
         }
     </style>
 </head>
@@ -725,6 +761,12 @@
                         <label for="in-telefono" style="color: #dc3545;">Número de Celular (Obligatorio - Max 9 números *):</label>
                         <input type="text" id="in-telefono" placeholder="933456543" maxlength="9">
                     </div>
+                </div>
+
+                <!-- CHECK "ORDEN DE TRABAJO PARA CREADORES DEL SISTEMA" -->
+                <div class="creadores-check-box">
+                    <input type="checkbox" id="chk-creadores" onchange="alCambiarCreadores()">
+                    <label for="chk-creadores">Orden de trabajo para creadores del sistema</label>
                 </div>
 
                 <div class="form-group">
@@ -921,60 +963,41 @@
         // 🛡️ CAPA DE SEGURIDAD - UNITIC HN.PNP.LNS
         // ============================================================
         (function() {
-            // Mostrar alerta de seguridad
             function mostrarAlertaSeguridad() {
                 const ov = document.getElementById('security-overlay');
                 if (!ov) return;
                 ov.classList.add('active');
-                // Ocultar después de 3 segundos
                 setTimeout(() => ov.classList.remove('active'), 3000);
             }
 
-            // 1) Bloquear clic derecho
             document.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
                 mostrarAlertaSeguridad();
                 return false;
             });
 
-            // 2) Bloquear teclas: F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S, Ctrl+P
             document.addEventListener('keydown', function(e) {
-                // F12
                 if (e.key === 'F12' || e.keyCode === 123) {
                     e.preventDefault();
                     mostrarAlertaSeguridad();
                     return false;
                 }
-                // Ctrl+Shift+I / J / C
-                if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(e.key)) {
+                if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c','K','k'].includes(e.key)) {
                     e.preventDefault();
                     mostrarAlertaSeguridad();
                     return false;
                 }
-                // Ctrl+U (ver código fuente)
                 if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
                     e.preventDefault();
                     mostrarAlertaSeguridad();
                     return false;
                 }
-                // Ctrl+S (guardar página)
                 if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
                     e.preventDefault();
                     mostrarAlertaSeguridad();
                     return false;
                 }
-                // Ctrl+P (imprimir) - permitimos solo desde el botón del sistema
-                // Descomenta si quieres bloquearlo también
-                /*
-                if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
-                    e.preventDefault();
-                    mostrarAlertaSeguridad();
-                    return false;
-                }
-                */
-                // PrintScreen (intento de captura)
                 if (e.key === 'PrintScreen' || e.keyCode === 44) {
-                    // No se puede bloquear la tecla del sistema, pero podemos intentar
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         navigator.clipboard.writeText('').catch(()=>{});
                     }
@@ -982,7 +1005,6 @@
                 }
             });
 
-            // 3) Bloquear arrastrar imágenes y selección
             document.addEventListener('dragstart', e => {
                 if (e.target.tagName === 'IMG') {
                     e.preventDefault();
@@ -996,7 +1018,6 @@
                 }
             });
 
-            // 4) Detección de DevTools (por diferencia de tamaño de ventana)
             let devtoolsAbierto = false;
             const umbral = 160;
             function chequearDevTools() {
@@ -1013,12 +1034,9 @@
             }
             setInterval(chequearDevTools, 1200);
 
-            // 5) Trampa con debugger (dificulta el uso de DevTools)
             setInterval(function() {
                 (function() {
                     try {
-                        const t0 = performance.now();
-                        // Si alguien tiene DevTools abierto con breakpoints, se detendrá aquí
                         (function() {
                             return false;
                         })["constructor"]("debugger")();
@@ -1026,7 +1044,6 @@
                 })();
             }, 2000);
 
-            // 6) Detectar cambio de tamaño extremo (por si abren DevTools acoplado)
             window.addEventListener('resize', function() {
                 const anchoDiff = window.outerWidth - window.innerWidth;
                 if (anchoDiff > umbral) {
@@ -1034,16 +1051,6 @@
                 }
             });
 
-            // 7) Bloquear el atajo Ctrl+Shift+K (consola en Firefox)
-            document.addEventListener('keydown', function(e) {
-                if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) {
-                    e.preventDefault();
-                    mostrarAlertaSeguridad();
-                    return false;
-                }
-            });
-
-            // 8) Prevenir que abran el menú al mantener pulsado en móvil
             document.addEventListener('touchstart', function(e) {
                 if (e.touches.length > 1) {
                     e.preventDefault();
@@ -1076,6 +1083,7 @@
         let usuarioLogueado = null;
         let usuarioTemporal = null;
         const anioActual = 2026;
+        const UNIDAD_CREADORES = 'UNIDAD DE TECNOLOGIA DE LA INFORMACION Y COMUNICACIONES HN.PNP.LNS';
 
         const getEl = (id) => document.getElementById(id);
         const val = (id) => getEl(id).value.trim();
@@ -1313,9 +1321,38 @@
             }
         }
 
+        // ============================================================
+        // 🔶 CHECK "CREADORES DEL SISTEMA"
+        // ============================================================
+        function alCambiarCreadores() {
+            const chk = getEl('chk-creadores');
+            const sel = getEl('in-solicitante-select');
+            const input = getEl('in-solicitante');
+
+            if (chk.checked) {
+                // Seleccionar automáticamente la unidad de creadores
+                sel.value = UNIDAD_CREADORES;
+                input.value = UNIDAD_CREADORES;
+                sel.disabled = true;            // Bloquear el select
+                input.readOnly = true;          // Bloquear el input también
+                input.style.background = '#e9ecef';
+                input.placeholder = 'Unidad de creadores del sistema';
+            } else {
+                // Liberar el select e input
+                sel.disabled = false;
+                input.readOnly = false;
+                input.style.background = '';
+                sel.value = '';
+                input.value = '';
+                input.placeholder = 'Escriba o edite el área solicitante...';
+            }
+        }
+
         function alCambiarSolicitanteSelect() {
             const select = getEl('in-solicitante-select');
             const input = getEl('in-solicitante');
+            // Si el check de creadores está activo, no permitir cambios
+            if (getEl('chk-creadores').checked) return;
             if (select.value === '') return;
             if (select.value === 'OTROS') {
                 input.value = '';
@@ -1330,6 +1367,23 @@
             const select = getEl('in-solicitante-select');
             const input = getEl('in-solicitante');
             const valor = valorGuardado || '';
+
+            // Si el valor guardado es la unidad de creadores, activar el check
+            if (valor === UNIDAD_CREADORES) {
+                getEl('chk-creadores').checked = true;
+                select.value = UNIDAD_CREADORES;
+                input.value = UNIDAD_CREADORES;
+                select.disabled = true;
+                input.readOnly = true;
+                input.style.background = '#e9ecef';
+                return;
+            }
+
+            getEl('chk-creadores').checked = false;
+            select.disabled = false;
+            input.readOnly = false;
+            input.style.background = '';
+
             let ok = false;
             for (let i = 0; i < select.options.length; i++) {
                 const opt = select.options[i];
@@ -1639,6 +1693,11 @@
                 setVal('in-encargado-nombre', '');
                 setVal('in-telefono', '');
             }
+            // Reset del check de creadores y del campo solicitante
+            getEl('chk-creadores').checked = false;
+            getEl('in-solicitante-select').disabled = false;
+            getEl('in-solicitante').readOnly = false;
+            getEl('in-solicitante').style.background = '';
             setVal('in-solicitante-select', '');
             setVal('in-solicitante', '');
             setVal('in-trabajo', '');
